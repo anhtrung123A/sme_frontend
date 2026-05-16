@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import type { ReactNode } from 'react'
 import { Header } from './Header'
 import { Sidebar } from './Sidebar'
@@ -8,14 +9,24 @@ type AppLayoutProps = {
 }
 
 export function AppLayout({ title, children }: AppLayoutProps) {
-  return (
-    <div className="layout-container">
-      <Sidebar />
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
 
-      <main className="main-content">
-        <Header title={title} />
-        {children}
-      </main>
+  return (
+    <div className="app-shell">
+      <Header        onToggleSidebar={() => setIsSidebarCollapsed((prev) => !prev)}
+      />
+
+      <div className="app-body">
+        <Sidebar isCollapsed={isSidebarCollapsed} />
+
+        <main className="page-content">
+          <div className="page-header">
+            <h1 className="page-title">{title}</h1>
+          </div>
+          {children}
+        </main>
+      </div>
     </div>
   )
 }
+
