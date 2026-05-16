@@ -14,6 +14,11 @@ import { DashboardPage } from '../features/dashboard/pages/DashboardPage'
 import { useAuth } from '../features/auth/hooks'
 import { useAuthRoles } from '../features/auth/useAuthRoles'
 import { FollowUpTaskListPage } from '../features/followUpTasks/pages/FollowUpTaskListPage'
+import { LeadAnalyticsPage } from '../features/analytics/pages/LeadAnalyticsPage'
+import { RevenueAnalyticsPage } from '../features/analytics/pages/RevenueAnalyticsPage'
+import { EnrollmentAnalyticsPage } from '../features/analytics/pages/EnrollmentAnalyticsPage'
+import { AttendanceAnalyticsPage } from '../features/analytics/pages/AttendanceAnalyticsPage'
+import { TaskAnalyticsPage } from '../features/analytics/pages/TaskAnalyticsPage'
 import { EnrollmentCreatePage } from '../features/enrollments/pages/EnrollmentCreatePage'
 import { EnrollmentDetailPage } from '../features/enrollments/pages/EnrollmentDetailPage'
 import { EnrollmentEditPage } from '../features/enrollments/pages/EnrollmentEditPage'
@@ -139,6 +144,26 @@ function resolvePrivateRoute(path: string, roles: string[]): RouteView | null {
   if (studentEditMatch) return { title: 'Edit Student', content: <StudentEditPage studentId={studentEditMatch[1]} /> }
 
   if (path === '/follow-up-tasks') return { title: 'Follow-up Tasks', content: <FollowUpTaskListPage /> }
+  if (path === '/analytics/leads') {
+    if (!hasAnyRole(roles, ['Admin', 'Manager', 'Sales'])) return null
+    return { title: 'Lead Analytics', content: <LeadAnalyticsPage /> }
+  }
+  if (path === '/analytics/revenue') {
+    if (!hasAnyRole(roles, ['Admin', 'Manager'])) return null
+    return { title: 'Revenue Analytics', content: <RevenueAnalyticsPage /> }
+  }
+  if (path === '/analytics/enrollments') {
+    if (!hasAnyRole(roles, ['Admin', 'Manager', 'Sales'])) return null
+    return { title: 'Enrollment Analytics', content: <EnrollmentAnalyticsPage /> }
+  }
+  if (path === '/analytics/attendance') {
+    if (!hasAnyRole(roles, ['Admin', 'Manager', 'Teacher'])) return null
+    return { title: 'Attendance Analytics', content: <AttendanceAnalyticsPage /> }
+  }
+  if (path === '/analytics/tasks') {
+    if (!hasAnyRole(roles, ['Admin', 'Manager', 'Sales'])) return null
+    return { title: 'Task Analytics', content: <TaskAnalyticsPage /> }
+  }
   if (path === '/lead-sources') return { title: 'Lead Sources', content: <LeadSourceListPage /> }
   if (path === '/enrollments') {
     if (!hasAnyRole(roles, ['Admin', 'Manager', 'Sales'])) return null
