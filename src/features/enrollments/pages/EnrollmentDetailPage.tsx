@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useAuthRoles } from '../../auth/useAuthRoles'
 import { navigateTo } from '../../../lib/navigation'
 import { assignEnrollmentClassApi, getClassesLiteApi, getEnrollmentApi, updateEnrollmentStatusApi } from '../api'
+import { createInvoiceFromEnrollmentApi } from '../../invoices/api'
 import { EnrollmentStatusBadge } from '../components/EnrollmentStatusBadge'
 import type { ClassLite, EnrollmentDto } from '../types'
 
@@ -10,6 +11,7 @@ export function EnrollmentDetailPage({ enrollmentId }: { enrollmentId: string })
   const roles = useAuthRoles()
   const canAssignClass = roles.includes('Admin') || roles.includes('Manager')
   const canChangeStatus = roles.includes('Admin') || roles.includes('Manager') || roles.includes('Sales')
+  const canCreateInvoice = roles.includes('Admin') || roles.includes('Manager')
 
   const [item, setItem] = useState<EnrollmentDto | null>(null)
   const [classes, setClasses] = useState<ClassLite[]>([])
@@ -36,7 +38,7 @@ export function EnrollmentDetailPage({ enrollmentId }: { enrollmentId: string })
           <button className="table-action-btn" onClick={() => navigateTo(`/enrollments/${item.id}/edit`)}>Edit enrollment</button>
           {canAssignClass ? <button className="table-action-btn" onClick={async()=>{const selected = window.prompt('Class ID (empty to unassign)', item.classId ? String(item.classId) : ''); if (selected === null) return; await assignEnrollmentClassApi(item.id, selected.trim() ? Number(selected) : null); await load()}}>Assign class</button> : null}
           {canChangeStatus ? <button className="table-action-btn" onClick={async()=>{const status = window.prompt('New status', item.status); if (!status) return; const note = window.prompt('Note (optional)', item.note ?? '') ?? undefined; await updateEnrollmentStatusApi(item.id, status, note); await load()}}>Change status</button> : null}
-          <button className="table-action-btn" disabled title="Available in Phase 6">Create invoice</button>
+          {canCreateInvoice ? <button className="table-action-btn" onClick={async()=>{const dueDate = window.prompt('Due date (YYYY-MM-DD)', '') || undefined; const invoice = await createInvoiceFromEnrollmentApi(item.id, dueDate); navigateTo(`/invoices/${invoice.id}`)}}>Create invoice</button> : null}
         </div>
       </div>
 

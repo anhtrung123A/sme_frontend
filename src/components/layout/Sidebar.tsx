@@ -8,6 +8,8 @@ import {
   Megaphone,
   Shield,
   ClipboardCheck,
+  Receipt,
+  HandCoins,
   User,
   Users,
   Warehouse,
@@ -33,6 +35,8 @@ const navItems: NavItem[] = [
   { label: 'Follow-up Tasks', path: '/follow-up-tasks', icon: ListChecks, roles: ['Admin', 'Manager', 'Sales'] },
   { label: 'Lead Sources', path: '/lead-sources', icon: Building2, roles: ['Admin', 'Manager'] },
   { label: 'Enrollments', path: '/enrollments', icon: ClipboardCheck, roles: ['Admin', 'Manager', 'Sales'] },
+  { label: 'Invoices', path: '/invoices', icon: Receipt, roles: ['Admin', 'Manager', 'Sales'] },
+  { label: 'Payments', path: '/payments', icon: HandCoins, roles: ['Admin', 'Manager'] },
   { label: 'Profile', path: '/profile', icon: User },
 ]
 
@@ -48,6 +52,8 @@ export function Sidebar({ isCollapsed }: SidebarProps) {
     if (path === '/courses') return currentPath === '/courses' || /\/courses\/[^/]+\/edit$/.test(currentPath)
     if (path === '/classes') return currentPath === '/classes' || currentPath === '/classes/create' || /\/classes\/[^/]+(\/edit|\/sessions)?$/.test(currentPath)
     if (path === '/enrollments') return currentPath === '/enrollments' || currentPath === '/enrollments/create' || /\/enrollments\/[^/]+(\/edit)?$/.test(currentPath)
+    if (path === '/invoices') return currentPath === '/invoices' || /\/invoices\/[^/]+$/.test(currentPath)
+    if (path === '/payments') return currentPath === '/payments' || /\/students\/[^/]+\/payments$/.test(currentPath)
     return currentPath === path
   }
 

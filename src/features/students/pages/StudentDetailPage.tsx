@@ -3,14 +3,16 @@ import { createGuardianApi, deleteGuardianApi, getGuardiansApi, updateGuardianAp
 import { createStudentNoteApi, deleteStudentNoteApi, getStudentNotesApi, updateStudentNoteApi } from '../../studentNotes/api'
 import { getStudentApi, updateStudentStatusApi } from '../api'
 import { StudentEnrollmentsTab } from '../components/StudentEnrollmentsTab'
+import { StudentInvoicesTab } from '../components/StudentInvoicesTab'
+import { StudentPaymentsTab } from '../components/StudentPaymentsTab'
 import type { StudentDto, StudentGuardianDto, StudentNoteDto } from '../types'
 
-export function StudentDetailPage({ studentId, defaultTab = 'overview' }: { studentId: string; defaultTab?: 'overview'|'guardians'|'notes'|'enrollments' }) {
+export function StudentDetailPage({ studentId, defaultTab = 'overview' }: { studentId: string; defaultTab?: 'overview'|'guardians'|'notes'|'enrollments'|'invoices'|'payments' }) {
   const id = Number(studentId)
   const [student, setStudent] = useState<StudentDto | null>(null)
   const [guardians, setGuardians] = useState<StudentGuardianDto[]>([])
   const [notes, setNotes] = useState<StudentNoteDto[]>([])
-  const [tab, setTab] = useState<'overview'|'guardians'|'notes'|'enrollments'|'disabled'>(defaultTab)
+  const [tab, setTab] = useState<'overview'|'guardians'|'notes'|'enrollments'|'invoices'|'payments'|'disabled'>(defaultTab)
   const [error, setError] = useState<string | null>(null)
 
   const load = async () => {
@@ -35,7 +37,8 @@ export function StudentDetailPage({ studentId, defaultTab = 'overview' }: { stud
         <button className={`tab-btn ${tab==='guardians'?'active':''}`} onClick={()=>setTab('guardians')}>Guardians</button>
         <button className={`tab-btn ${tab==='notes'?'active':''}`} onClick={()=>setTab('notes')}>Notes</button>
         <button className={`tab-btn ${tab==='enrollments'?'active':''}`} onClick={()=>setTab('enrollments')}>Enrollments</button>
-        <button className="tab-btn" onClick={()=>setTab('disabled')}>Invoices (Phase 6)</button>
+        <button className={`tab-btn ${tab==='invoices'?'active':''}`} onClick={()=>setTab('invoices')}>Invoices</button>
+        <button className={`tab-btn ${tab==='payments'?'active':''}`} onClick={()=>setTab('payments')}>Payments</button>
         <button className="tab-btn" onClick={()=>setTab('disabled')}>Attendance (Phase 7)</button>
       </div>
 
@@ -73,6 +76,8 @@ export function StudentDetailPage({ studentId, defaultTab = 'overview' }: { stud
       ) : null}
 
       {tab==='enrollments' ? <StudentEnrollmentsTab studentId={id} /> : null}
+      {tab==='invoices' ? <StudentInvoicesTab studentId={id} /> : null}
+      {tab==='payments' ? <StudentPaymentsTab studentId={id} /> : null}
 
       {tab==='disabled' ? <p>This tab will be available in a later phase.</p> : null}
     </>

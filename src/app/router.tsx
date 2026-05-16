@@ -18,6 +18,8 @@ import { EnrollmentCreatePage } from '../features/enrollments/pages/EnrollmentCr
 import { EnrollmentDetailPage } from '../features/enrollments/pages/EnrollmentDetailPage'
 import { EnrollmentEditPage } from '../features/enrollments/pages/EnrollmentEditPage'
 import { EnrollmentListPage } from '../features/enrollments/pages/EnrollmentListPage'
+import { InvoiceDetailPage } from '../features/invoices/pages/InvoiceDetailPage'
+import { InvoiceListPage } from '../features/invoices/pages/InvoiceListPage'
 import { LeadCreatePage } from '../features/leads/pages/LeadCreatePage'
 import { LeadDetailPage } from '../features/leads/pages/LeadDetailPage'
 import { LeadEditPage } from '../features/leads/pages/LeadEditPage'
@@ -30,6 +32,7 @@ import { StudentCreatePage } from '../features/students/pages/StudentCreatePage'
 import { StudentDetailPage } from '../features/students/pages/StudentDetailPage'
 import { StudentEditPage } from '../features/students/pages/StudentEditPage'
 import { StudentListPage } from '../features/students/pages/StudentListPage'
+import { PaymentListPage } from '../features/payments/pages/PaymentListPage'
 import { UserCreatePage } from '../features/users/pages/UserCreatePage'
 import { UserEditPage } from '../features/users/pages/UserEditPage'
 import { UsersPage } from '../features/users/pages/UsersPage'
@@ -113,6 +116,16 @@ function resolvePrivateRoute(path: string, roles: string[]): RouteView | null {
   }
   const studentDetailMatch = path.match(/^\/students\/([^/]+)$/)
   if (studentDetailMatch) return { title: 'Student Detail', content: <StudentDetailPage studentId={studentDetailMatch[1]} /> }
+  const studentInvoicesMatch = path.match(/^\/students\/([^/]+)\/invoices$/)
+  if (studentInvoicesMatch) {
+    if (!hasAnyRole(roles, ['Admin', 'Manager', 'Sales'])) return null
+    return { title: 'Student Invoices', content: <StudentDetailPage studentId={studentInvoicesMatch[1]} defaultTab="invoices" /> }
+  }
+  const studentPaymentsMatch = path.match(/^\/students\/([^/]+)\/payments$/)
+  if (studentPaymentsMatch) {
+    if (!hasAnyRole(roles, ['Admin', 'Manager', 'Sales'])) return null
+    return { title: 'Student Payments', content: <StudentDetailPage studentId={studentPaymentsMatch[1]} defaultTab="payments" /> }
+  }
   const studentEditMatch = path.match(/^\/students\/([^/]+)\/edit$/)
   if (studentEditMatch) return { title: 'Edit Student', content: <StudentEditPage studentId={studentEditMatch[1]} /> }
 
@@ -136,6 +149,19 @@ function resolvePrivateRoute(path: string, roles: string[]): RouteView | null {
     if (!hasAnyRole(roles, ['Admin', 'Manager'])) return null
     return { title: 'Edit Enrollment', content: <EnrollmentEditPage enrollmentId={enrollmentEditMatch[1]} /> }
   }
+  if (path === '/invoices') {
+    if (!hasAnyRole(roles, ['Admin', 'Manager', 'Sales'])) return null
+    return { title: 'Invoices', content: <InvoiceListPage /> }
+  }
+  const invoiceDetailMatch = path.match(/^\/invoices\/([^/]+)$/)
+  if (invoiceDetailMatch) {
+    if (!hasAnyRole(roles, ['Admin', 'Manager', 'Sales'])) return null
+    return { title: 'Invoice Detail', content: <InvoiceDetailPage invoiceId={invoiceDetailMatch[1]} /> }
+  }
+  if (path === '/payments') {
+    if (!hasAnyRole(roles, ['Admin', 'Manager'])) return null
+    return { title: 'Payments', content: <PaymentListPage /> }
+  }
 
   if (path === '/profile') return { title: 'Profile', content: <ProfilePage /> }
 
@@ -146,20 +172,21 @@ export function AppRouter() {
   const { isAuthenticated, isInitializing } = useAuth()
   const roles = useAuthRoles()
   const path = useCurrentPath()
+  const cleanPath = path.split('?')[0] ?? path
 
   if (isInitializing) return null
 
   if (!isAuthenticated) {
-    if (path !== '/login') navigateTo('/login', true)
+    if (cleanPath !== '/login') navigateTo('/login', true)
     return <LoginPage />
   }
 
-  if (path === '/login' || path === '/') {
+  if (cleanPath === '/login' || cleanPath === '/') {
     navigateTo('/dashboard', true)
     return null
   }
 
-  const route = resolvePrivateRoute(path, roles)
+  const route = resolvePrivateRoute(cleanPath, roles)
   if (!route) {
     navigateTo('/dashboard', true)
     return null
