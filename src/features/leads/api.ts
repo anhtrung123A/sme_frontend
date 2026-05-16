@@ -128,3 +128,27 @@ export async function cancelTaskApi(id: number): Promise<FollowUpTaskDto> {
   const res = await apiRequest<ApiResponse<FollowUpTaskDto>>(`/follow-up-tasks/${id}/cancel`, { method: 'PATCH' })
   return res.data
 }
+
+export async function convertLeadToStudentApi(
+  leadId: number,
+  payload: {
+    branchId?: number | null
+    gender?: string | null
+    guardian?: {
+      fullName?: string | null
+      phone?: string | null
+      email?: string | null
+      relationship?: string | null
+      isPrimary?: boolean
+    } | null
+  } = {},
+): Promise<{ leadId: number; studentId: number; studentCode: string; leadStatus: string }> {
+  const res = await apiRequest<ApiResponse<{ leadId: number; studentId: number; studentCode: string; leadStatus: string }>>(
+    `/leads/${leadId}/convert-to-student`,
+    {
+      method: 'POST',
+      body: payload,
+    },
+  )
+  return res.data
+}

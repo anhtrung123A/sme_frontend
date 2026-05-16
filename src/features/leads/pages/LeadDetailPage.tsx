@@ -4,6 +4,7 @@ import {
   cancelTaskApi,
   changeLeadStatusApi,
   completeTaskApi,
+  convertLeadToStudentApi,
   createLeadActivityApi,
   createLeadTaskApi,
   getLeadActivitiesApi,
@@ -12,10 +13,14 @@ import {
   getSalesUsersApi,
 } from '../api'
 import type { FollowUpTaskDto, LeadActivityDto, LeadDto, UserLite } from '../types'
+import { useAuthRoles } from '../../auth/useAuthRoles'
 
 type LeadDetailPageProps = { leadId: string }
 
 export function LeadDetailPage({ leadId }: LeadDetailPageProps) {
+  const roles = useAuthRoles()
+  const canConvert = roles.includes('Admin') || roles.includes('Manager') || roles.includes('Sales')
+
   const id = Number(leadId)
   const [lead, setLead] = useState<LeadDto | null>(null)
   const [activities, setActivities] = useState<LeadActivityDto[]>([])
@@ -56,6 +61,8 @@ export function LeadDetailPage({ leadId }: LeadDetailPageProps) {
 
   if (!lead) return <p>{error ?? 'Loading...'}</p>
 
+  const canShowConvert = canConvert && lead.status !== 'lost'
+
   return (
     <>
       {error ? <p className="auth-error">{error}</p> : null}
@@ -74,6 +81,18 @@ export function LeadDetailPage({ leadId }: LeadDetailPageProps) {
           >
             Change status
           </button>
+          {canShowConvert ? (
+            <button
+              className="table-action-btn"
+              onClick={async () => {
+                const gender = window.prompt('Gender (male/female/other), optional:', '') || null
+                const response = await convertLeadToStudentApi(lead.id, { gender })
+                navigateTo(`/students/${response.studentId}`, true)
+              }}
+            >
+              Convert to Student
+            </button>
+          ) : null}
           <button className="table-action-btn" onClick={() => setShowActivity(true)}>+ Activity</button>
           <button className="table-action-btn" onClick={() => setShowTask(true)}>+ Follow-up task</button>
         </div>
