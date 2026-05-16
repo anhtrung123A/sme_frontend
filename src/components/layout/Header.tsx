@@ -1,12 +1,7 @@
-import { useState } from 'react'
-import {
-  Bell,
-  Menu,
-  Search,
-  Settings,
-  X,
-} from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { Bell, Menu, Search, Settings, X } from 'lucide-react'
 import { useAuth } from '../../features/auth/hooks'
+import { useCurrentPath } from '../../lib/navigation'
 import { navigateTo } from '../../lib/navigation'
 
 type HeaderProps = {
@@ -15,9 +10,44 @@ type HeaderProps = {
 
 export function Header({ onToggleSidebar }: HeaderProps) {
   const { currentUser, logout } = useAuth()
+  const currentPath = useCurrentPath()
+
   const [isProfileOpen, setIsProfileOpen] = useState(false)
   const [isSearchOpen, setIsSearchOpen] = useState(false)
   const [searchValue, setSearchValue] = useState('')
+
+  const searchContainerRef = useRef<HTMLDivElement | null>(null)
+
+  useEffect(() => {
+    setIsSearchOpen(false)
+    setIsProfileOpen(false)
+  }, [currentPath])
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsSearchOpen(false)
+        setIsProfileOpen(false)
+      }
+    }
+
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [])
+
+  useEffect(() => {
+    const onPointerDown = (event: MouseEvent) => {
+      if (!isSearchOpen) return
+      const target = event.target as Node | null
+      const root = searchContainerRef.current
+      if (root && target && !root.contains(target)) {
+        setIsSearchOpen(false)
+      }
+    }
+
+    window.addEventListener('mousedown', onPointerDown)
+    return () => window.removeEventListener('mousedown', onPointerDown)
+  }, [isSearchOpen])
 
   return (
     <>
@@ -31,7 +61,7 @@ export function Header({ onToggleSidebar }: HeaderProps) {
           <div className="top-page">Home</div>
         </div>
 
-        <div className="top-navbar-center">
+        <div className="top-navbar-center" ref={searchContainerRef}>
           <label className={`top-search ${isSearchOpen ? 'focused' : ''}`}>
             <Search size={16} />
             <input
@@ -73,8 +103,6 @@ export function Header({ onToggleSidebar }: HeaderProps) {
         </div>
       </header>
 
-      {isSearchOpen ? <button type="button" className="search-backdrop" onClick={() => setIsSearchOpen(false)} /> : null}
-
       {isProfileOpen ? (
         <aside className="profile-drawer">
           <div className="profile-header">
@@ -93,7 +121,7 @@ export function Header({ onToggleSidebar }: HeaderProps) {
           </div>
 
           <div className="profile-meta">
-            <div className="profile-label">Branch Name</div>
+            <div className="profile-label">Tenant Name</div>
             <div>{currentUser?.branchName ?? 'SME English Center'}</div>
           </div>
 
@@ -117,5 +145,3 @@ export function Header({ onToggleSidebar }: HeaderProps) {
     </>
   )
 }
-
-
