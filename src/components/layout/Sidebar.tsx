@@ -1,7 +1,7 @@
 import type { LucideIcon } from 'lucide-react'
 import {
   Building2,
-  Home,
+  LayoutDashboard,
   Shield,
   User,
   Users,
@@ -20,7 +20,7 @@ type NavItem = {
 }
 
 const navItems: NavItem[] = [
-  { label: 'Home', path: '/dashboard', icon: Home },
+  { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
   { label: 'Users', path: '/users', icon: Users },
   { label: 'Roles', path: '/roles', icon: Shield },
   { label: 'Branches', path: '/branches', icon: Building2 },
@@ -69,3 +69,4 @@ export function Sidebar({ isCollapsed }: SidebarProps) {
     </nav>
   )
 }
+
