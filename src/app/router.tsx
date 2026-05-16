@@ -18,6 +18,9 @@ import { EnrollmentCreatePage } from '../features/enrollments/pages/EnrollmentCr
 import { EnrollmentDetailPage } from '../features/enrollments/pages/EnrollmentDetailPage'
 import { EnrollmentEditPage } from '../features/enrollments/pages/EnrollmentEditPage'
 import { EnrollmentListPage } from '../features/enrollments/pages/EnrollmentListPage'
+import { SessionAttendancePage } from '../features/attendance/pages/SessionAttendancePage'
+import { ClassAttendanceSummaryPage } from '../features/attendance/pages/ClassAttendanceSummaryPage'
+import { StudentAttendanceHistoryPage } from '../features/attendance/pages/StudentAttendanceHistoryPage'
 import { InvoiceDetailPage } from '../features/invoices/pages/InvoiceDetailPage'
 import { InvoiceListPage } from '../features/invoices/pages/InvoiceListPage'
 import { LeadCreatePage } from '../features/leads/pages/LeadCreatePage'
@@ -33,6 +36,7 @@ import { StudentDetailPage } from '../features/students/pages/StudentDetailPage'
 import { StudentEditPage } from '../features/students/pages/StudentEditPage'
 import { StudentListPage } from '../features/students/pages/StudentListPage'
 import { PaymentListPage } from '../features/payments/pages/PaymentListPage'
+import { MySessionsPage } from '../features/teacher/pages/MySessionsPage'
 import { UserCreatePage } from '../features/users/pages/UserCreatePage'
 import { UserEditPage } from '../features/users/pages/UserEditPage'
 import { UsersPage } from '../features/users/pages/UsersPage'
@@ -126,6 +130,11 @@ function resolvePrivateRoute(path: string, roles: string[]): RouteView | null {
     if (!hasAnyRole(roles, ['Admin', 'Manager', 'Sales'])) return null
     return { title: 'Student Payments', content: <StudentDetailPage studentId={studentPaymentsMatch[1]} defaultTab="payments" /> }
   }
+  const studentAttendanceMatch = path.match(/^\/students\/([^/]+)\/attendance$/)
+  if (studentAttendanceMatch) {
+    if (!hasAnyRole(roles, ['Admin', 'Manager', 'Sales', 'Teacher'])) return null
+    return { title: 'Student Attendance', content: <StudentAttendanceHistoryPage studentId={studentAttendanceMatch[1]} /> }
+  }
   const studentEditMatch = path.match(/^\/students\/([^/]+)\/edit$/)
   if (studentEditMatch) return { title: 'Edit Student', content: <StudentEditPage studentId={studentEditMatch[1]} /> }
 
@@ -161,6 +170,20 @@ function resolvePrivateRoute(path: string, roles: string[]): RouteView | null {
   if (path === '/payments') {
     if (!hasAnyRole(roles, ['Admin', 'Manager'])) return null
     return { title: 'Payments', content: <PaymentListPage /> }
+  }
+  if (path === '/teacher/my-sessions') {
+    if (!hasAnyRole(roles, ['Admin', 'Manager', 'Teacher'])) return null
+    return { title: 'My Sessions', content: <MySessionsPage /> }
+  }
+  const attendanceSessionMatch = path.match(/^\/attendance\/sessions\/([^/]+)$/)
+  if (attendanceSessionMatch) {
+    if (!hasAnyRole(roles, ['Admin', 'Manager', 'Teacher'])) return null
+    return { title: 'Session Attendance', content: <SessionAttendancePage sessionId={attendanceSessionMatch[1]} /> }
+  }
+  const classAttendanceSummaryMatch = path.match(/^\/classes\/([^/]+)\/attendance-summary$/)
+  if (classAttendanceSummaryMatch) {
+    if (!hasAnyRole(roles, ['Admin', 'Manager', 'Teacher'])) return null
+    return { title: 'Class Attendance Summary', content: <ClassAttendanceSummaryPage classId={classAttendanceSummaryMatch[1]} /> }
   }
 
   if (path === '/profile') return { title: 'Profile', content: <ProfilePage /> }
