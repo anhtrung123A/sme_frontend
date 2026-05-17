@@ -33,6 +33,7 @@ import { LeadDetailPage } from '../features/leads/pages/LeadDetailPage'
 import { LeadEditPage } from '../features/leads/pages/LeadEditPage'
 import { LeadListPage } from '../features/leads/pages/LeadListPage'
 import { LeadSourceListPage } from '../features/leadSources/pages/LeadSourceListPage'
+import { LeadCandidateListPage } from '../features/leadCandidates/pages/LeadCandidateListPage'
 import { ProfilePage } from '../features/profile/pages/ProfilePage'
 import { RolesPage } from '../features/roles/pages/RolesPage'
 import { RoomsPage } from '../features/rooms/pages/RoomsPage'
@@ -110,6 +111,9 @@ function resolvePrivateRoute(path: string, roles: string[]): RouteView | null {
   }
 
   if (path === '/leads') return { title: 'Leads', content: <LeadListPage /> }
+  if (path === '/leads/candidates') return { title: 'Lead Candidates', content: <LeadCandidateListPage /> }
+  const leadCandidateDetailMatch = path.match(/^\/leads\/candidates\/([^/]+)$/)
+  if (leadCandidateDetailMatch) return { title: 'Lead Candidates', content: <LeadCandidateListPage candidateId={leadCandidateDetailMatch[1]} /> }
   if (path === '/leads/create') return { title: 'Create Lead', content: <LeadCreatePage /> }
   const leadDetailMatch = path.match(/^\/leads\/([^/]+)$/)
   if (leadDetailMatch) return { title: 'Lead Detail', content: <LeadDetailPage leadId={leadDetailMatch[1]} /> }

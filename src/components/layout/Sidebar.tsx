@@ -25,6 +25,7 @@ const navItems: NavItem[] = [
   { label: 'Courses', path: '/courses', icon: <BookOpen24Regular />, roles: ['Admin', 'Manager', 'Sales'] },
   { label: 'Classes', path: '/classes', icon: <BookOpen24Regular />, roles: ['Admin', 'Manager', 'Sales', 'Teacher'] },
   { label: 'Leads', path: '/leads', icon: <People24Regular />, roles: ['Admin', 'Manager', 'Sales'] },
+  { label: 'Lead Candidates', path: '/leads/candidates', icon: <People24Regular />, roles: ['Admin', 'Manager', 'Sales'] },
   { label: 'Students', path: '/students', icon: <People24Regular />, roles: ['Admin', 'Manager', 'Sales'] },
   { label: 'Follow-up Tasks', path: '/follow-up-tasks', icon: <CalendarCheckmark24Regular />, roles: ['Admin', 'Manager', 'Sales'] },
   { label: 'Lead Sources', path: '/lead-sources', icon: <Building24Regular />, roles: ['Admin', 'Manager'] },
@@ -127,7 +128,8 @@ export function Sidebar({ isCollapsed }: SidebarProps) {
 
   const isActive = (path: string) => {
     if (path === '/users') return currentPath === '/users' || currentPath === '/users/create' || /\/users\/[^/]+\/edit$/.test(currentPath)
-    if (path === '/leads') return currentPath === '/leads' || currentPath === '/leads/create' || /\/leads\/[^/]+(\/edit)?$/.test(currentPath)
+    if (path === '/leads/candidates') return currentPath === '/leads/candidates' || /\/leads\/candidates\/[^/]+$/.test(currentPath)
+    if (path === '/leads') return currentPath === '/leads' || currentPath === '/leads/create' || /\/leads\/(?!candidates(?:\/|$))[^/]+(\/edit)?$/.test(currentPath)
     if (path === '/students') return currentPath === '/students' || currentPath === '/students/create' || /\/students\/[^/]+(\/edit|\/enrollments|\/invoices|\/payments|\/attendance)?$/.test(currentPath)
     if (path === '/courses') return currentPath === '/courses' || /\/courses\/[^/]+\/edit$/.test(currentPath)
     if (path === '/classes') return currentPath === '/classes' || currentPath === '/classes/create' || /\/classes\/[^/]+(\/edit|\/sessions)?$/.test(currentPath)
