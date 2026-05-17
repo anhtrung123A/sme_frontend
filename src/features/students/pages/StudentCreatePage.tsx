@@ -1,24 +1,48 @@
 import { useEffect, useState } from 'react'
+import {
+  Button,
+  Card,
+  Field,
+  Input,
+  MessageBar,
+  MessageBarBody,
+  Select,
+  makeStyles,
+  tokens,
+} from '@fluentui/react-components'
 import { useAuth } from '../../auth/hooks'
 import { useAuthRoles } from '../../auth/useAuthRoles'
 import { navigateTo } from '../../../lib/navigation'
 import { createStudentApi, getBranchesApi } from '../api'
 import type { BranchDto } from '../types'
 
+const useStyles = makeStyles({
+  formCard: { maxWidth: '960px', padding: tokens.spacingHorizontalL },
+  grid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(2, minmax(220px, 1fr))',
+    gap: tokens.spacingHorizontalM,
+    '@media (max-width: 760px)': { gridTemplateColumns: '1fr' },
+  },
+  full: { gridColumn: '1 / -1' },
+  actions: { marginTop: tokens.spacingVerticalL, display: 'flex', justifyContent: 'flex-end', gap: tokens.spacingHorizontalS },
+})
+
 export function StudentCreatePage() {
+  const styles = useStyles()
   const roles = useAuthRoles()
   const { currentUser } = useAuth()
   const isAdmin = roles.includes('Admin')
 
   const [branches, setBranches] = useState<BranchDto[]>([])
   const [error, setError] = useState<string | null>(null)
-  const [form, setForm] = useState({ branchId:'', fullName:'', email:'', phone:'', dateOfBirth:'', gender:'male', address:'' })
+  const [form, setForm] = useState({ branchId: '', fullName: '', email: '', phone: '', dateOfBirth: '', gender: 'male', address: '' })
 
   useEffect(() => {
     void (async () => {
       const data = await getBranchesApi()
       setBranches(data)
-      if (!isAdmin && currentUser?.branchId) setForm((prev)=>({ ...prev, branchId: String(currentUser.branchId) }))
+      if (!isAdmin && currentUser?.branchId) setForm((prev) => ({ ...prev, branchId: String(currentUser.branchId) }))
     })()
   }, [isAdmin, currentUser])
 
@@ -45,16 +69,32 @@ export function StudentCreatePage() {
   }
 
   return (
-    <form className="user-form" onSubmit={submit}>
-      {error ? <p className="auth-error">{error}</p> : null}
-      <label className="form-field"><span>Branch</span><select className="toolbar-select" value={form.branchId} onChange={(e)=>setForm({...form,branchId:e.target.value})}>{isAdmin ? <option value="">Select</option> : null}{branches.map((b)=><option key={b.id} value={b.id}>{b.name}</option>)}</select></label>
-      <label className="form-field"><span>Full name</span><input className="toolbar-input" value={form.fullName} onChange={(e)=>setForm({...form,fullName:e.target.value})} required /></label>
-      <label className="form-field"><span>Email</span><input className="toolbar-input" value={form.email} onChange={(e)=>setForm({...form,email:e.target.value})} /></label>
-      <label className="form-field"><span>Phone</span><input className="toolbar-input" value={form.phone} onChange={(e)=>setForm({...form,phone:e.target.value})} required /></label>
-      <label className="form-field"><span>Date of birth</span><input className="toolbar-input" type="date" value={form.dateOfBirth} onChange={(e)=>setForm({...form,dateOfBirth:e.target.value})} /></label>
-      <label className="form-field"><span>Gender</span><select className="toolbar-select" value={form.gender} onChange={(e)=>setForm({...form,gender:e.target.value})}><option value="male">male</option><option value="female">female</option><option value="other">other</option></select></label>
-      <label className="form-field" style={{gridColumn:'1 / -1'}}><span>Address</span><input className="toolbar-input" value={form.address} onChange={(e)=>setForm({...form,address:e.target.value})} /></label>
-      <div className="form-actions"><button className="ms-button ms-button--secondary" type="button" onClick={()=>navigateTo('/students')}>Cancel</button><button className="ms-button" type="submit">Create student</button></div>
-    </form>
+    <Card className={styles.formCard}>
+      <form onSubmit={submit}>
+        {error ? <MessageBar intent="error"><MessageBarBody>{error}</MessageBarBody></MessageBar> : null}
+        <div className={styles.grid}>
+          <Field label="Branch" required>
+            <Select value={form.branchId} onChange={(e) => setForm({ ...form, branchId: e.currentTarget.value })}>
+              {isAdmin ? <option value="">Select</option> : null}
+              {branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+            </Select>
+          </Field>
+          <Field label="Full name" required><Input value={form.fullName} onChange={(_, d) => setForm({ ...form, fullName: d.value })} /></Field>
+          <Field label="Email"><Input value={form.email} onChange={(_, d) => setForm({ ...form, email: d.value })} /></Field>
+          <Field label="Phone" required><Input value={form.phone} onChange={(_, d) => setForm({ ...form, phone: d.value })} /></Field>
+          <Field label="Date of birth"><Input type="date" value={form.dateOfBirth} onChange={(_, d) => setForm({ ...form, dateOfBirth: d.value })} /></Field>
+          <Field label="Gender">
+            <Select value={form.gender} onChange={(e) => setForm({ ...form, gender: e.currentTarget.value })}>
+              <option value="male">male</option><option value="female">female</option><option value="other">other</option>
+            </Select>
+          </Field>
+          <Field className={styles.full} label="Address"><Input value={form.address} onChange={(_, d) => setForm({ ...form, address: d.value })} /></Field>
+        </div>
+        <div className={styles.actions}>
+          <Button appearance="secondary" type="button" onClick={() => navigateTo('/students')}>Cancel</Button>
+          <Button appearance="primary" type="submit">Create student</Button>
+        </div>
+      </form>
+    </Card>
   )
 }

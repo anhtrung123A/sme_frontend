@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import type { PropsWithChildren } from 'react'
+import { FluentProvider, webLightTheme } from '@fluentui/react-components'
 import { useAppDispatch } from './reduxHooks'
 import { initializeAuth } from '../features/auth/authSlice'
 
@@ -10,5 +11,5 @@ export function AppProviders({ children }: PropsWithChildren) {
     void dispatch(initializeAuth())
   }, [dispatch])
 
-  return <>{children}</>
+  return <FluentProvider theme={webLightTheme}>{children}</FluentProvider>
 }

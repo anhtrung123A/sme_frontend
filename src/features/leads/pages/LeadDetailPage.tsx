@@ -1,4 +1,32 @@
 import { useEffect, useMemo, useState } from 'react'
+import {
+  Badge,
+  Button,
+  Dialog,
+  DialogActions,
+  DialogBody,
+  DialogContent,
+  DialogSurface,
+  DialogTitle,
+  DialogTrigger,
+  Field,
+  Input,
+  MessageBar,
+  MessageBarBody,
+  Select,
+  Tab,
+  TabList,
+  Table,
+  TableBody,
+  TableCell,
+  TableHeader,
+  TableHeaderCell,
+  TableRow,
+  Text,
+  Textarea,
+  makeStyles,
+  tokens,
+} from '@fluentui/react-components'
 import { navigateTo } from '../../../lib/navigation'
 import {
   cancelTaskApi,
@@ -14,10 +42,29 @@ import {
 } from '../api'
 import type { FollowUpTaskDto, LeadActivityDto, LeadDto, UserLite } from '../types'
 import { useAuthRoles } from '../../auth/useAuthRoles'
+import { DetailCard, PageStack, TableActions, TableCard } from '../../../components/ui/FluentPage'
+import { formatStatusLabel } from '../../../lib/formatStatus'
 
 type LeadDetailPageProps = { leadId: string }
 
+const useStyles = makeStyles({
+  topActions: { display: 'flex', gap: tokens.spacingHorizontalS, flexWrap: 'wrap' },
+  timeline: { display: 'grid', gap: tokens.spacingVerticalS },
+  timelineItem: { padding: tokens.spacingHorizontalM, border: `1px solid ${tokens.colorNeutralStroke2}`, borderRadius: tokens.borderRadiusMedium },
+  meta: { color: tokens.colorNeutralForeground3 },
+})
+
+function getStatusColor(status: string) {
+  if (status === 'new') return 'brand'
+  if (status === 'contacted') return 'informative'
+  if (status === 'interested') return 'success'
+  if (status === 'trial_scheduled') return 'warning'
+  if (status === 'lost') return 'danger'
+  return 'subtle'
+}
+
 export function LeadDetailPage({ leadId }: LeadDetailPageProps) {
+  const styles = useStyles()
   const roles = useAuthRoles()
   const canConvert = roles.includes('Admin') || roles.includes('Manager') || roles.includes('Sales')
 
@@ -39,152 +86,171 @@ export function LeadDetailPage({ leadId }: LeadDetailPageProps) {
         getLeadTasksApi(id),
         getSalesUsersApi(),
       ])
-      setLead(l)
-      setActivities(a)
-      setTasks(t)
-      setUsers(u)
+      setLead(l); setActivities(a); setTasks(t); setUsers(u)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load lead detail')
     }
   }
 
-  useEffect(() => {
-    void refresh()
-  }, [id])
+  useEffect(() => { void refresh() }, [id])
 
   const nextFollowUp = useMemo(() => {
-    const pending = tasks
-      .filter((t) => t.status === 'pending')
-      .sort((a, b) => new Date(a.dueAt).getTime() - new Date(b.dueAt).getTime())
+    const pending = tasks.filter((t) => t.status === 'pending').sort((a, b) => new Date(a.dueAt).getTime() - new Date(b.dueAt).getTime())
     return pending[0]
   }, [tasks])
 
   if (!lead) return <p>{error ?? 'Loading...'}</p>
-
   const canShowConvert = canConvert && lead.status !== 'lost'
 
   return (
-    <>
-      {error ? <p className="auth-error">{error}</p> : null}
-      <div className="users-toolbar">
-        <div className="users-filters">
-          <button className="table-action-btn" onClick={() => navigateTo(`/leads/${lead.id}/edit`)}>Edit lead</button>
-          <button
-            className="table-action-btn"
-            onClick={async () => {
-              const s = window.prompt('Status:', lead.status)
-              if (s) {
-                await changeLeadStatusApi(lead.id, s)
-                await refresh()
-              }
-            }}
-          >
-            Change status
-          </button>
-          {canShowConvert ? (
-            <button
-              className="table-action-btn"
-              onClick={async () => {
-                const gender = window.prompt('Gender (male/female/other), optional:', '') || null
-                const response = await convertLeadToStudentApi(lead.id, { gender })
-                navigateTo(`/students/${response.studentId}`, true)
-              }}
-            >
-              Convert to Student
-            </button>
-          ) : null}
-          <button className="table-action-btn" onClick={() => setShowActivity(true)}>+ Activity</button>
-          <button className="table-action-btn" onClick={() => setShowTask(true)}>+ Follow-up task</button>
-        </div>
+    <PageStack>
+      {error ? <MessageBar intent="error"><MessageBarBody>{error}</MessageBarBody></MessageBar> : null}
+      <div className={styles.topActions}>
+        <Button appearance="secondary" onClick={() => navigateTo(`/leads/${lead.id}/edit`)}>Edit lead</Button>
+        <Button appearance="secondary" onClick={async () => {
+          const s = window.prompt('Status:', lead.status)
+          if (s) { await changeLeadStatusApi(lead.id, s); await refresh() }
+        }}>Change status</Button>
+        {canShowConvert ? <Button appearance="primary" onClick={async () => {
+          const gender = window.prompt('Gender (male/female/other), optional:', '') || null
+          const response = await convertLeadToStudentApi(lead.id, { gender })
+          navigateTo(`/students/${response.studentId}`, true)
+        }}>Convert to Student</Button> : null}
+        <Button appearance="secondary" onClick={() => setShowActivity(true)}>Add Activity</Button>
+        <Button appearance="secondary" onClick={() => setShowTask(true)}>Add Follow-up Task</Button>
       </div>
 
-      <div className="tabs">
-        <button className={`tab-btn ${tab === 'overview' ? 'active' : ''}`} onClick={() => setTab('overview')}>Overview</button>
-        <button className={`tab-btn ${tab === 'activities' ? 'active' : ''}`} onClick={() => setTab('activities')}>Activities</button>
-        <button className={`tab-btn ${tab === 'tasks' ? 'active' : ''}`} onClick={() => setTab('tasks')}>Follow-up Tasks</button>
-      </div>
+      <TabList selectedValue={tab} onTabSelect={(_, d) => setTab(d.value as typeof tab)}>
+        <Tab value="overview">Overview</Tab>
+        <Tab value="activities">Activities</Tab>
+        <Tab value="tasks">Follow-up Tasks</Tab>
+      </TabList>
 
       {tab === 'overview' ? (
-        <div className="detail-grid">
-          <div><strong>Full name:</strong> {lead.fullName}</div><div><strong>Phone:</strong> {lead.phone}</div>
-          <div><strong>Email:</strong> {lead.email ?? '-'}</div><div><strong>Address:</strong> {lead.address ?? '-'}</div>
-          <div><strong>Source:</strong> {lead.sourceName ?? '-'}</div><div><strong>Status:</strong> {lead.status}</div>
-          <div><strong>Assigned sales:</strong> {lead.assignedToUserName ?? '-'}</div><div><strong>Next follow-up:</strong> {nextFollowUp ? new Date(nextFollowUp.dueAt).toLocaleString() : '-'}</div>
-          <div style={{ gridColumn: '1 / -1' }}><strong>Demand note:</strong> {lead.demandNote ?? '-'}</div>
-        </div>
+        <DetailCard>
+          <div><Text weight="semibold">Full name</Text><Text>{lead.fullName}</Text></div>
+          <div><Text weight="semibold">Phone</Text><Text>{lead.phone}</Text></div>
+          <div><Text weight="semibold">Email</Text><Text>{lead.email ?? '-'}</Text></div>
+          <div><Text weight="semibold">Address</Text><Text>{lead.address ?? '-'}</Text></div>
+          <div><Text weight="semibold">Source</Text><Text>{lead.sourceName ?? '-'}</Text></div>
+          <div><Text weight="semibold">Status</Text><Badge appearance="filled" color={getStatusColor(lead.status)}>{formatStatusLabel(lead.status)}</Badge></div>
+          <div><Text weight="semibold">Assigned sales</Text><Text>{lead.assignedToUserName ?? '-'}</Text></div>
+          <div><Text weight="semibold">Next follow-up</Text><Text>{nextFollowUp ? new Date(nextFollowUp.dueAt).toLocaleString() : '-'}</Text></div>
+          <div><Text weight="semibold">Demand note</Text><Text>{lead.demandNote ?? '-'}</Text></div>
+        </DetailCard>
       ) : null}
 
       {tab === 'activities' ? (
-        <div className="timeline">
+        <div className={styles.timeline}>
           {activities.map((a) => (
-            <div key={a.id} className="timeline-item">
-              <div><strong>{a.type}</strong> - {a.content}</div>
-              <small>{new Date(a.contactedAtUtc ?? a.createdAtUtc).toLocaleString()} by {a.userName}</small>
+            <div key={a.id} className={styles.timelineItem}>
+              <Text weight="semibold">{a.type} - {a.content}</Text>
+              <Text size={200} className={styles.meta}>{new Date(a.contactedAtUtc ?? a.createdAtUtc).toLocaleString()} by {a.userName}</Text>
             </div>
           ))}
         </div>
       ) : null}
 
       {tab === 'tasks' ? (
-        <table className="ms-table">
-          <thead><tr><th>Title</th><th>Due at</th><th>Assigned user</th><th>Status</th><th>Actions</th></tr></thead>
-          <tbody>
-            {tasks.map((t) => {
-              const overdue = t.status === 'pending' && new Date(t.dueAt).getTime() < Date.now()
-              const display = overdue ? 'overdue' : t.status
-              return (
-                <tr key={t.id}>
-                  <td>{t.title}</td>
-                  <td>{new Date(t.dueAt).toLocaleString()}</td>
-                  <td>{t.assignedToUserName}</td>
-                  <td>{display}</td>
-                  <td>
-                    <div className="table-actions">
-                      <button className="table-action-btn" onClick={async () => { await completeTaskApi(t.id); await refresh() }}>Complete</button>
-                      <button className="table-action-btn" onClick={async () => { await cancelTaskApi(t.id); await refresh() }}>Cancel</button>
-                    </div>
-                  </td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
+        <TableCard title="Follow-up Tasks" subtitle={`${tasks.length} tasks`}>
+          <Table aria-label="Lead tasks table">
+            <TableHeader>
+              <TableRow>
+                <TableHeaderCell>Title</TableHeaderCell>
+                <TableHeaderCell>Due at</TableHeaderCell>
+                <TableHeaderCell>Assigned user</TableHeaderCell>
+                <TableHeaderCell>Status</TableHeaderCell>
+                <TableHeaderCell>Actions</TableHeaderCell>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {tasks.map((t) => {
+                const overdue = t.status === 'pending' && new Date(t.dueAt).getTime() < Date.now()
+                const display = overdue ? 'overdue' : t.status
+                return (
+                  <TableRow key={t.id}>
+                    <TableCell>{t.title}</TableCell>
+                    <TableCell>{new Date(t.dueAt).toLocaleString()}</TableCell>
+                    <TableCell>{t.assignedToUserName}</TableCell>
+                    <TableCell><Badge appearance="filled" color={overdue ? 'danger' : 'informative'}>{formatStatusLabel(display)}</Badge></TableCell>
+                    <TableCell>
+                      <TableActions>
+                        <Button size="small" appearance="subtle" onClick={async () => { await completeTaskApi(t.id); await refresh() }}>Complete</Button>
+                        <Button size="small" appearance="subtle" onClick={async () => { await cancelTaskApi(t.id); await refresh() }}>Cancel</Button>
+                      </TableActions>
+                    </TableCell>
+                  </TableRow>
+                )
+              })}
+            </TableBody>
+          </Table>
+        </TableCard>
       ) : null}
 
-      {showActivity ? <ActivityModal leadId={lead.id} onClose={() => setShowActivity(false)} onCreated={refresh} /> : null}
-      {showTask ? <TaskModal leadId={lead.id} users={users} onClose={() => setShowTask(false)} onCreated={refresh} /> : null}
-    </>
+      <ActivityDialog leadId={lead.id} open={showActivity} onOpenChange={setShowActivity} onCreated={refresh} />
+      <TaskDialog leadId={lead.id} users={users} open={showTask} onOpenChange={setShowTask} onCreated={refresh} />
+    </PageStack>
   )
 }
 
-function ActivityModal({ leadId, onClose, onCreated }: { leadId: number; onClose: () => void; onCreated: () => Promise<void> }) {
+function ActivityDialog({ leadId, open, onOpenChange, onCreated }: { leadId: number; open: boolean; onOpenChange: (v: boolean) => void; onCreated: () => Promise<void> }) {
   const [type, setType] = useState('call')
   const [content, setContent] = useState('')
   const [contactedAt, setContactedAt] = useState('')
 
   return (
-    <div className="modal-backdrop"><div className="modal-card"><h3>Create Activity</h3>
-      <div className="form-field"><span>Type</span><select className="toolbar-select" value={type} onChange={(e) => setType(e.target.value)}>{['call','email','zalo','meeting','note','trial_follow_up'].map((t)=><option key={t}>{t}</option>)}</select></div>
-      <div className="form-field"><span>Content</span><textarea className="toolbar-input" style={{ height: '90px', paddingTop: '8px' }} value={content} onChange={(e) => setContent(e.target.value)} /></div>
-      <div className="form-field"><span>Contacted At</span><input className="toolbar-input" type="datetime-local" value={contactedAt} onChange={(e) => setContactedAt(e.target.value)} /></div>
-      <div className="modal-actions"><button className="ms-button ms-button--secondary" onClick={onClose}>Cancel</button><button className="ms-button" onClick={async()=>{await createLeadActivityApi(leadId,{type,content,contactedAt:contactedAt?new Date(contactedAt).toISOString():undefined});onClose();await onCreated()}}>Create</button></div>
-    </div></div>
+    <Dialog open={open} onOpenChange={(_, d) => onOpenChange(d.open)}>
+      <DialogSurface>
+        <DialogBody>
+          <DialogTitle>Create Activity</DialogTitle>
+          <DialogContent>
+            <Field label="Type"><Select value={type} onChange={(e) => setType(e.currentTarget.value)}>{['call', 'email', 'zalo', 'meeting', 'note', 'trial_follow_up'].map((t) => <option key={t}>{t}</option>)}</Select></Field>
+            <Field label="Content"><Textarea value={content} onChange={(_, d) => setContent(d.value)} /></Field>
+            <Field label="Contacted At"><Input type="datetime-local" value={contactedAt} onChange={(_, d) => setContactedAt(d.value)} /></Field>
+          </DialogContent>
+          <DialogActions>
+            <DialogTrigger disableButtonEnhancement><Button appearance="secondary">Cancel</Button></DialogTrigger>
+            <Button appearance="primary" onClick={async () => {
+              await createLeadActivityApi(leadId, { type, content, contactedAt: contactedAt ? new Date(contactedAt).toISOString() : undefined })
+              onOpenChange(false); await onCreated()
+            }}>Create</Button>
+          </DialogActions>
+        </DialogBody>
+      </DialogSurface>
+    </Dialog>
   )
 }
 
-function TaskModal({ leadId, users, onClose, onCreated }: { leadId: number; users: UserLite[]; onClose: () => void; onCreated: () => Promise<void> }) {
+function TaskDialog({ leadId, users, open, onOpenChange, onCreated }: { leadId: number; users: UserLite[]; open: boolean; onOpenChange: (v: boolean) => void; onCreated: () => Promise<void> }) {
   const [assignedToUserId, setAssignedToUserId] = useState(users[0] ? String(users[0].id) : '')
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [dueAt, setDueAt] = useState('')
 
+  useEffect(() => {
+    if (!assignedToUserId && users[0]) setAssignedToUserId(String(users[0].id))
+  }, [users, assignedToUserId])
+
   return (
-    <div className="modal-backdrop"><div className="modal-card"><h3>Create Follow-up Task</h3>
-      <div className="form-field"><span>Assigned user</span><select className="toolbar-select" value={assignedToUserId} onChange={(e)=>setAssignedToUserId(e.target.value)}>{users.map((u)=><option key={u.id} value={u.id}>{u.fullName}</option>)}</select></div>
-      <div className="form-field"><span>Title</span><input className="toolbar-input" value={title} onChange={(e)=>setTitle(e.target.value)} /></div>
-      <div className="form-field"><span>Description</span><textarea className="toolbar-input" style={{height:'90px',paddingTop:'8px'}} value={description} onChange={(e)=>setDescription(e.target.value)} /></div>
-      <div className="form-field"><span>Due at</span><input className="toolbar-input" type="datetime-local" value={dueAt} onChange={(e)=>setDueAt(e.target.value)} /></div>
-      <div className="modal-actions"><button className="ms-button ms-button--secondary" onClick={onClose}>Cancel</button><button className="ms-button" onClick={async()=>{await createLeadTaskApi({leadId,assignedToUserId:Number(assignedToUserId),title,description,dueAt:new Date(dueAt).toISOString()});onClose();await onCreated()}}>Create</button></div>
-    </div></div>
+    <Dialog open={open} onOpenChange={(_, d) => onOpenChange(d.open)}>
+      <DialogSurface>
+        <DialogBody>
+          <DialogTitle>Create Follow-up Task</DialogTitle>
+          <DialogContent>
+            <Field label="Assigned user"><Select value={assignedToUserId} onChange={(e) => setAssignedToUserId(e.currentTarget.value)}>{users.map((u) => <option key={u.id} value={u.id}>{u.fullName}</option>)}</Select></Field>
+            <Field label="Title"><Input value={title} onChange={(_, d) => setTitle(d.value)} /></Field>
+            <Field label="Description"><Textarea value={description} onChange={(_, d) => setDescription(d.value)} /></Field>
+            <Field label="Due at"><Input type="datetime-local" value={dueAt} onChange={(_, d) => setDueAt(d.value)} /></Field>
+          </DialogContent>
+          <DialogActions>
+            <DialogTrigger disableButtonEnhancement><Button appearance="secondary">Cancel</Button></DialogTrigger>
+            <Button appearance="primary" onClick={async () => {
+              await createLeadTaskApi({ leadId, assignedToUserId: Number(assignedToUserId), title, description, dueAt: new Date(dueAt).toISOString() })
+              onOpenChange(false); await onCreated()
+            }}>Create</Button>
+          </DialogActions>
+        </DialogBody>
+      </DialogSurface>
+    </Dialog>
   )
 }

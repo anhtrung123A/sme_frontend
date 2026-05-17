@@ -1,15 +1,34 @@
 import { useEffect, useMemo, useState } from 'react'
+import {
+  Button,
+  Field,
+  Input,
+  MessageBar,
+  MessageBarBody,
+  Select,
+  Table,
+  TableBody,
+  TableCell,
+  TableHeader,
+  TableHeaderCell,
+  TableRow,
+} from '@fluentui/react-components'
 import { navigateTo } from '../../../lib/navigation'
+import { Pagination } from '../../../components/ui/Pagination'
+import { FilterGroup, FilterItem, KpiCard, KpiGrid, PageStack, PageToolbar, TableCard } from '../../../components/ui/FluentPage'
 import { getInvoicesApi } from '../api'
 import { InvoiceStatusBadge } from '../components/InvoiceStatusBadge'
 import type { InvoiceDto } from '../types'
 
 export function InvoiceListPage() {
+  const pageSize = 20
   const [items, setItems] = useState<InvoiceDto[]>([])
   const [status, setStatus] = useState('')
   const [dueFrom, setDueFrom] = useState('')
   const [dueTo, setDueTo] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [page, setPage] = useState(1)
+  const [totalCount, setTotalCount] = useState(0)
 
   const kpi = useMemo(() => ({
     unpaid: items.filter((x) => x.status === 'unpaid').length,
@@ -18,41 +37,49 @@ export function InvoiceListPage() {
     overdue: items.filter((x) => x.status === 'overdue').length,
   }), [items])
 
-  const load = async () => {
+  const load = async (nextPage = page) => {
     try {
-      const data = await getInvoicesApi({ status: status || undefined, dueFrom: dueFrom || undefined, dueTo: dueTo || undefined })
+      const data = await getInvoicesApi({ status: status || undefined, dueFrom: dueFrom || undefined, dueTo: dueTo || undefined, page: nextPage, pageSize })
       setItems(Array.isArray(data.items) ? data.items : [])
+      setPage(data.pageNumber)
+      setTotalCount(data.totalCount)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load invoices')
     }
   }
 
-  useEffect(() => { void load() }, [])
+  useEffect(() => { void load(1) }, [])
 
   return (
-    <>
-      <div className="kpi-grid" style={{ gridTemplateColumns: 'repeat(4, minmax(0, 1fr))' }}>
-        <div className="kpi-card"><span>Unpaid</span><strong>{kpi.unpaid}</strong></div>
-        <div className="kpi-card"><span>Partially Paid</span><strong>{kpi.partiallyPaid}</strong></div>
-        <div className="kpi-card"><span>Paid</span><strong>{kpi.paid}</strong></div>
-        <div className="kpi-card"><span>Overdue</span><strong>{kpi.overdue}</strong></div>
-      </div>
-      <div className="users-toolbar">
-        <div className="users-filters">
-          <select className="toolbar-select" value={status} onChange={(e) => setStatus(e.target.value)}>
-            <option value="">All status</option>
-            {['unpaid', 'partially_paid', 'paid', 'overdue', 'cancelled'].map((x) => <option key={x} value={x}>{x}</option>)}
-          </select>
-          <input className="toolbar-input" type="date" value={dueFrom} onChange={(e)=>setDueFrom(e.target.value)} />
-          <input className="toolbar-input" type="date" value={dueTo} onChange={(e)=>setDueTo(e.target.value)} />
-          <button className="ms-button ms-button--secondary" onClick={()=>void load()}>Apply</button>
-        </div>
-      </div>
-      {error ? <p className="auth-error">{error}</p> : null}
-      <table className="ms-table">
-        <thead><tr><th>Invoice code</th><th>Student</th><th>Enrollment</th><th>Amount</th><th>Paid amount</th><th>Remaining</th><th>Due date</th><th>Status</th><th>Actions</th></tr></thead>
-        <tbody>{items.map((x)=><tr key={x.id}><td>{x.invoiceCode}</td><td>{x.studentName}</td><td>{x.enrollmentId}</td><td>{x.amount.toLocaleString()}</td><td>{x.paidAmount.toLocaleString()}</td><td>{x.remainingAmount.toLocaleString()}</td><td>{x.dueDate ?? '-'}</td><td><InvoiceStatusBadge status={x.status} /></td><td><button className="table-action-btn" onClick={()=>navigateTo(`/invoices/${x.id}`)}>View</button></td></tr>)}</tbody>
-      </table>
-    </>
+    <PageStack>
+      <KpiGrid>
+        <KpiCard label="Unpaid" value={kpi.unpaid} />
+        <KpiCard label="Partially Paid" value={kpi.partiallyPaid} />
+        <KpiCard label="Paid" value={kpi.paid} />
+        <KpiCard label="Overdue" value={kpi.overdue} />
+      </KpiGrid>
+      <PageToolbar>
+        <FilterGroup>
+          <FilterItem>
+            <Field label="Status">
+              <Select value={status} onChange={(e) => setStatus(e.currentTarget.value)}>
+                <option value="">All status</option>
+                {['unpaid', 'partially_paid', 'paid', 'overdue', 'cancelled'].map((x) => <option key={x} value={x}>{x}</option>)}
+              </Select>
+            </Field>
+          </FilterItem>
+          <FilterItem><Field label="Due from"><Input type="date" value={dueFrom} onChange={(_, d) => setDueFrom(d.value)} /></Field></FilterItem>
+          <FilterItem><Field label="Due to"><Input type="date" value={dueTo} onChange={(_, d) => setDueTo(d.value)} /></Field></FilterItem>
+          <Button appearance="secondary" onClick={() => void load(1)}>Apply</Button>
+        </FilterGroup>
+      </PageToolbar>
+      {error ? <MessageBar intent="error"><MessageBarBody>{error}</MessageBarBody></MessageBar> : null}
+      <TableCard title="Invoices" subtitle={`${totalCount.toLocaleString()} total invoices`} footer={<Pagination page={page} pageSize={pageSize} totalCount={totalCount} onPageChange={(p) => void load(p)} />}>
+        <Table aria-label="Invoices table">
+          <TableHeader><TableRow><TableHeaderCell>Invoice code</TableHeaderCell><TableHeaderCell>Student</TableHeaderCell><TableHeaderCell>Enrollment</TableHeaderCell><TableHeaderCell>Amount</TableHeaderCell><TableHeaderCell>Paid amount</TableHeaderCell><TableHeaderCell>Remaining</TableHeaderCell><TableHeaderCell>Due date</TableHeaderCell><TableHeaderCell>Status</TableHeaderCell><TableHeaderCell>Actions</TableHeaderCell></TableRow></TableHeader>
+          <TableBody>{items.map((x) => <TableRow key={x.id}><TableCell>{x.invoiceCode}</TableCell><TableCell>{x.studentName}</TableCell><TableCell>{x.enrollmentId}</TableCell><TableCell>{x.amount.toLocaleString()}</TableCell><TableCell>{x.paidAmount.toLocaleString()}</TableCell><TableCell>{x.remainingAmount.toLocaleString()}</TableCell><TableCell>{x.dueDate ?? '-'}</TableCell><TableCell><InvoiceStatusBadge status={x.status} /></TableCell><TableCell><Button size="small" appearance="subtle" onClick={() => navigateTo(`/invoices/${x.id}`)}>View</Button></TableCell></TableRow>)}</TableBody>
+        </Table>
+      </TableCard>
+    </PageStack>
   )
 }

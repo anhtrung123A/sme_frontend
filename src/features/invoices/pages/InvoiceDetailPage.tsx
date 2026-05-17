@@ -1,8 +1,30 @@
 import { useEffect, useState } from 'react'
+import {
+  Button,
+  Dialog,
+  DialogActions,
+  DialogBody,
+  DialogContent,
+  DialogSurface,
+  DialogTitle,
+  DialogTrigger,
+  Field,
+  Input,
+  MessageBar,
+  MessageBarBody,
+  Table,
+  TableBody,
+  TableCell,
+  TableHeader,
+  TableHeaderCell,
+  TableRow,
+} from '@fluentui/react-components'
 import { useAuthRoles } from '../../auth/useAuthRoles'
 import { cancelInvoiceApi, createPaymentApi, getInvoiceApi, getInvoicePaymentsApi } from '../api'
 import { InvoiceStatusBadge } from '../components/InvoiceStatusBadge'
 import type { InvoiceDto, PaymentDto } from '../types'
+import { DetailCard, PageStack, TableCard } from '../../../components/ui/FluentPage'
+import { formatStatusLabel } from '../../../lib/formatStatus'
 
 export function InvoiceDetailPage({ invoiceId }: { invoiceId: string }) {
   const id = Number(invoiceId)
@@ -12,11 +34,15 @@ export function InvoiceDetailPage({ invoiceId }: { invoiceId: string }) {
   const [invoice, setInvoice] = useState<InvoiceDto | null>(null)
   const [payments, setPayments] = useState<PaymentDto[]>([])
   const [error, setError] = useState<string | null>(null)
+  const [showPayDialog, setShowPayDialog] = useState(false)
+  const [showCancelDialog, setShowCancelDialog] = useState(false)
+  const [payForm, setPayForm] = useState({ amount: '', method: 'cash', transactionRef: '', paidAt: '', note: '' })
 
   const load = async () => {
     try {
       const [i, p] = await Promise.all([getInvoiceApi(id), getInvoicePaymentsApi(id)])
       setInvoice(i); setPayments(p)
+      setPayForm((prev) => ({ ...prev, amount: String(i.remainingAmount) }))
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load invoice')
     }
@@ -26,16 +52,15 @@ export function InvoiceDetailPage({ invoiceId }: { invoiceId: string }) {
   if (!invoice) return <p>{error ?? 'Loading...'}</p>
 
   return (
-    <>
-      {error ? <p className="auth-error">{error}</p> : null}
-      <div className="users-toolbar">
-        <div className="users-filters">
-          {canPay ? <button className="table-action-btn" onClick={async()=>{const amount = Number(window.prompt('Amount', String(invoice.remainingAmount)) || '0'); if (!amount || amount <= 0 || amount > invoice.remainingAmount) return; const method = window.prompt('Method (cash/bank_transfer/card/e_wallet/other)', 'cash') || 'cash'; const transactionRef = window.prompt('Transaction ref (optional)', '') || null; const paidAt = window.prompt('Paid at (ISO, optional)', '') || null; const note = window.prompt('Note (optional)', '') || null; await createPaymentApi(invoice.id, { amount, method, transactionRef, paidAt, note }); await load()}}>+ Payment</button> : null}
-          {canCancel && invoice.status !== 'paid' && invoice.status !== 'cancelled' ? <button className="table-action-btn" onClick={async()=>{if(window.confirm('Cancel invoice?')){await cancelInvoiceApi(invoice.id); await load()}}}>Cancel Invoice</button> : null}
-          <button className="table-action-btn" disabled title="Available later">Export PDF</button>
-        </div>
+    <PageStack>
+      {error ? <MessageBar intent="error"><MessageBarBody>{error}</MessageBarBody></MessageBar> : null}
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        {canPay ? <Button appearance="primary" onClick={() => setShowPayDialog(true)}>Add Payment</Button> : null}
+        {canCancel && invoice.status !== 'paid' && invoice.status !== 'cancelled' ? <Button appearance="secondary" onClick={() => setShowCancelDialog(true)}>Cancel Invoice</Button> : null}
+        <Button appearance="secondary" disabled title="Available later">Export PDF</Button>
       </div>
-      <div className="detail-grid">
+
+      <DetailCard>
         <div><strong>Invoice code:</strong> {invoice.invoiceCode}</div>
         <div><strong>Student:</strong> {invoice.studentName}</div>
         <div><strong>Enrollment:</strong> {invoice.enrollmentId}</div>
@@ -46,13 +71,58 @@ export function InvoiceDetailPage({ invoiceId }: { invoiceId: string }) {
         <div><strong>Status:</strong> <InvoiceStatusBadge status={invoice.status} /></div>
         <div><strong>Issued at:</strong> {invoice.issuedAt ? new Date(invoice.issuedAt).toLocaleString() : '-'}</div>
         <div><strong>Created by:</strong> {invoice.createdByUserName ?? '-'}</div>
-      </div>
+      </DetailCard>
 
-      <h3 style={{ marginTop: 16 }}>Payments</h3>
-      <table className="ms-table">
-        <thead><tr><th>Payment ID</th><th>Amount</th><th>Method</th><th>Transaction Ref</th><th>Paid At</th><th>Collected By</th><th>Status</th></tr></thead>
-        <tbody>{payments.map((x)=><tr key={x.id}><td>{x.id}</td><td>{x.amount.toLocaleString()}</td><td>{x.method}</td><td>{x.transactionRef ?? '-'}</td><td>{new Date(x.paidAt).toLocaleString()}</td><td>{x.collectedByUserName ?? '-'}</td><td>{x.status}</td></tr>)}</tbody>
-      </table>
-    </>
+      <TableCard title="Payments" subtitle={`${payments.length} payments`}>
+        <Table aria-label="Invoice payments table">
+          <TableHeader><TableRow><TableHeaderCell>Payment ID</TableHeaderCell><TableHeaderCell>Amount</TableHeaderCell><TableHeaderCell>Method</TableHeaderCell><TableHeaderCell>Transaction Ref</TableHeaderCell><TableHeaderCell>Paid At</TableHeaderCell><TableHeaderCell>Collected By</TableHeaderCell><TableHeaderCell>Status</TableHeaderCell></TableRow></TableHeader>
+          <TableBody>{payments.map((x) => <TableRow key={x.id}><TableCell>{x.id}</TableCell><TableCell>{x.amount.toLocaleString()}</TableCell><TableCell>{x.method}</TableCell><TableCell>{x.transactionRef ?? '-'}</TableCell><TableCell>{new Date(x.paidAt).toLocaleString()}</TableCell><TableCell>{x.collectedByUserName ?? '-'}</TableCell><TableCell>{formatStatusLabel(x.status)}</TableCell></TableRow>)}</TableBody>
+        </Table>
+      </TableCard>
+
+      <Dialog open={showPayDialog} onOpenChange={(_, d) => setShowPayDialog(d.open)}>
+        <DialogSurface>
+          <DialogBody>
+            <DialogTitle>Create Payment</DialogTitle>
+            <DialogContent>
+              <Field label="Amount"><Input type="number" min={1} value={payForm.amount} onChange={(_, data) => setPayForm({ ...payForm, amount: data.value })} /></Field>
+              <Field label="Method"><Input value={payForm.method} onChange={(_, data) => setPayForm({ ...payForm, method: data.value })} /></Field>
+              <Field label="Transaction ref"><Input value={payForm.transactionRef} onChange={(_, data) => setPayForm({ ...payForm, transactionRef: data.value })} /></Field>
+              <Field label="Paid at (ISO optional)"><Input value={payForm.paidAt} onChange={(_, data) => setPayForm({ ...payForm, paidAt: data.value })} /></Field>
+              <Field label="Note"><Input value={payForm.note} onChange={(_, data) => setPayForm({ ...payForm, note: data.value })} /></Field>
+            </DialogContent>
+            <DialogActions>
+              <DialogTrigger disableButtonEnhancement><Button appearance="secondary">Cancel</Button></DialogTrigger>
+              <Button appearance="primary" onClick={async () => {
+                const amount = Number(payForm.amount || '0')
+                if (!amount || amount <= 0 || amount > invoice.remainingAmount) return
+                await createPaymentApi(invoice.id, {
+                  amount,
+                  method: payForm.method,
+                  transactionRef: payForm.transactionRef || null,
+                  paidAt: payForm.paidAt || null,
+                  note: payForm.note || null,
+                })
+                setShowPayDialog(false)
+                await load()
+              }}>Create</Button>
+            </DialogActions>
+          </DialogBody>
+        </DialogSurface>
+      </Dialog>
+
+      <Dialog open={showCancelDialog} onOpenChange={(_, d) => setShowCancelDialog(d.open)}>
+        <DialogSurface>
+          <DialogBody>
+            <DialogTitle>Cancel invoice</DialogTitle>
+            <DialogContent>Cancel invoice "{invoice.invoiceCode}"?</DialogContent>
+            <DialogActions>
+              <DialogTrigger disableButtonEnhancement><Button appearance="secondary">No</Button></DialogTrigger>
+              <Button appearance="primary" onClick={async () => { await cancelInvoiceApi(invoice.id); setShowCancelDialog(false); await load() }}>Yes, cancel</Button>
+            </DialogActions>
+          </DialogBody>
+        </DialogSurface>
+      </Dialog>
+    </PageStack>
   )
 }

@@ -1,10 +1,35 @@
 import { useEffect, useMemo, useState } from 'react'
+import {
+  Badge,
+  Button,
+  Field,
+  Select,
+  Table,
+  TableBody,
+  TableCell,
+  TableHeader,
+  TableHeaderCell,
+  TableRow,
+} from '@fluentui/react-components'
+import { Add24Regular } from '@fluentui/react-icons'
 import { useAuthRoles } from '../../auth/useAuthRoles'
 import { navigateTo } from '../../../lib/navigation'
+import { formatStatusLabel } from '../../../lib/formatStatus'
+import { Pagination } from '../../../components/ui/Pagination'
+import { EmptyState, FilterGroup, FilterItem, KpiCard, KpiGrid, PageStack, PageToolbar, TableActions, TableCard } from '../../../components/ui/FluentPage'
 import { getBranchesLiteApi, getClassesApi, getCoursesLiteApi, getUsersLiteApi } from '../api'
 import type { BranchLite, ClassDto, CourseLite, UserLite } from '../types'
 
+function getClassStatusColor(status: string) {
+  if (status === 'active') return 'success'
+  if (status === 'planned') return 'brand'
+  if (status === 'completed') return 'informative'
+  if (status === 'cancelled') return 'danger'
+  return 'subtle'
+}
+
 export function ClassListPage() {
+  const pageSize = 20
   const roles = useAuthRoles()
   const canManage = roles.includes('Admin') || roles.includes('Manager')
 
@@ -17,53 +42,128 @@ export function ClassListPage() {
   const [branchId, setBranchId] = useState('')
   const [teacherUserId, setTeacherUserId] = useState('')
   const [status, setStatus] = useState('')
+  const [page, setPage] = useState(1)
+  const [totalCount, setTotalCount] = useState(0)
 
   const kpis = useMemo(() => ({
-    total: items.length,
+    total: totalCount,
     planned: items.filter((x) => x.status === 'planned').length,
     active: items.filter((x) => x.status === 'active').length,
     todaySessions: 0,
-  }), [items])
+  }), [items, totalCount])
 
-  const load = async () => {
+  const load = async (nextPage = page) => {
     const [classes, cs, bs, us] = await Promise.all([
       getClassesApi({
         courseId: courseId ? Number(courseId) : undefined,
         branchId: branchId ? Number(branchId) : undefined,
         teacherUserId: teacherUserId ? Number(teacherUserId) : undefined,
         status: status || undefined,
+        page: nextPage,
+        pageSize,
       }),
       getCoursesLiteApi(), getBranchesLiteApi(), getUsersLiteApi(),
     ])
     setItems(classes.items)
+    setPage(classes.pageNumber)
+    setTotalCount(classes.totalCount)
     setCourses(cs)
     setBranches(bs)
     setTeachers(us)
   }
 
-  useEffect(() => { void load() }, [])
+  useEffect(() => { void load(1) }, [])
 
   return (
-    <>
-      <div className="kpi-grid">
-        <div className="kpi-card"><span>Total classes</span><strong>{kpis.total}</strong></div>
-        <div className="kpi-card"><span>Planned classes</span><strong>{kpis.planned}</strong></div>
-        <div className="kpi-card"><span>Active classes</span><strong>{kpis.active}</strong></div>
-        <div className="kpi-card"><span>Today sessions</span><strong>{kpis.todaySessions}</strong></div>
-      </div>
+    <PageStack>
+      <KpiGrid>
+        <KpiCard label="Total classes" value={kpis.total} />
+        <KpiCard label="Planned classes" value={kpis.planned} />
+        <KpiCard label="Active classes" value={kpis.active} />
+        <KpiCard label="Today sessions" value={kpis.todaySessions} />
+      </KpiGrid>
 
-      <div className="users-toolbar">
-        <div className="users-filters">
-          <select className="toolbar-select" value={courseId} onChange={(e)=>setCourseId(e.target.value)}><option value="">All courses</option>{courses.map((c)=><option key={c.id} value={c.id}>{c.name}</option>)}</select>
-          <select className="toolbar-select" value={status} onChange={(e)=>setStatus(e.target.value)}><option value="">All status</option>{['planned','active','completed','cancelled'].map((s)=><option key={s}>{s}</option>)}</select>
-          <select className="toolbar-select" value={teacherUserId} onChange={(e)=>setTeacherUserId(e.target.value)}><option value="">All teachers</option>{teachers.map((u)=><option key={u.id} value={u.id}>{u.fullName}</option>)}</select>
-          <select className="toolbar-select" value={branchId} onChange={(e)=>setBranchId(e.target.value)}><option value="">All branches</option>{branches.map((b)=><option key={b.id} value={b.id}>{b.name}</option>)}</select>
-          <button className="ms-button ms-button--secondary" onClick={()=>void load()}>Apply</button>
-        </div>
-        {canManage ? <button className="ms-button" onClick={()=>navigateTo('/classes/create')}>Create class</button> : null}
-      </div>
+      <PageToolbar>
+        <FilterGroup>
+          <FilterItem>
+            <Field label="Course">
+              <Select value={courseId} onChange={(e) => setCourseId(e.currentTarget.value)}>
+                <option value="">All courses</option>
+                {courses.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </Select>
+            </Field>
+          </FilterItem>
+          <FilterItem>
+            <Field label="Status">
+              <Select value={status} onChange={(e) => setStatus(e.currentTarget.value)}>
+                <option value="">All status</option>
+                {['planned', 'active', 'completed', 'cancelled'].map((s) => <option key={s}>{formatStatusLabel(s)}</option>)}
+              </Select>
+            </Field>
+          </FilterItem>
+          <FilterItem>
+            <Field label="Teacher">
+              <Select value={teacherUserId} onChange={(e) => setTeacherUserId(e.currentTarget.value)}>
+                <option value="">All teachers</option>
+                {teachers.map((u) => <option key={u.id} value={u.id}>{u.fullName}</option>)}
+              </Select>
+            </Field>
+          </FilterItem>
+          <FilterItem>
+            <Field label="Branch">
+              <Select value={branchId} onChange={(e) => setBranchId(e.currentTarget.value)}>
+                <option value="">All branches</option>
+                {branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+              </Select>
+            </Field>
+          </FilterItem>
+          <Button appearance="secondary" onClick={() => void load(1)}>Apply</Button>
+        </FilterGroup>
+        {canManage ? <Button appearance="primary" icon={<Add24Regular />} onClick={() => navigateTo('/classes/create')}>Create class</Button> : null}
+      </PageToolbar>
 
-      <table className="ms-table"><thead><tr><th>Class code</th><th>Class name</th><th>Course</th><th>Teacher</th><th>Room</th><th>Status</th><th>Start date</th><th>End date</th><th>Actions</th></tr></thead><tbody>{items.map((c)=><tr key={c.id}><td>{c.classCode}</td><td>{c.name}</td><td>{c.courseName??'-'}</td><td>{c.teacherUserName??'-'}</td><td>{c.roomName??'-'}</td><td>{c.status}</td><td>{c.startDate??'-'}</td><td>{c.endDate??'-'}</td><td><div className="table-actions"><button className="table-action-btn" onClick={()=>navigateTo(`/classes/${c.id}`)}>View</button>{canManage ? <button className="table-action-btn" onClick={()=>navigateTo(`/classes/${c.id}/edit`)}>Edit</button> : null}<button className="table-action-btn" onClick={()=>navigateTo(`/classes/${c.id}/sessions`)}>Sessions</button></div></td></tr>)}</tbody></table>
-    </>
+      <TableCard title="Classes" subtitle={`${totalCount.toLocaleString()} total classes`} footer={<Pagination page={page} pageSize={pageSize} totalCount={totalCount} onPageChange={(p) => void load(p)} />}>
+        {items.length === 0 ? (
+          <EmptyState title="No classes found" description="Adjust filters or create a new class." />
+        ) : (
+          <Table aria-label="Classes table">
+            <TableHeader>
+              <TableRow>
+                <TableHeaderCell>Class code</TableHeaderCell>
+                <TableHeaderCell>Class name</TableHeaderCell>
+                <TableHeaderCell>Course</TableHeaderCell>
+                <TableHeaderCell>Teacher</TableHeaderCell>
+                <TableHeaderCell>Room</TableHeaderCell>
+                <TableHeaderCell>Status</TableHeaderCell>
+                <TableHeaderCell>Start date</TableHeaderCell>
+                <TableHeaderCell>End date</TableHeaderCell>
+                <TableHeaderCell>Actions</TableHeaderCell>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {items.map((c) => (
+                <TableRow key={c.id}>
+                  <TableCell>{c.classCode}</TableCell>
+                  <TableCell>{c.name}</TableCell>
+                  <TableCell>{c.courseName ?? '-'}</TableCell>
+                  <TableCell>{c.teacherUserName ?? '-'}</TableCell>
+                  <TableCell>{c.roomName ?? '-'}</TableCell>
+                  <TableCell><Badge appearance="filled" color={getClassStatusColor(c.status)}>{formatStatusLabel(c.status)}</Badge></TableCell>
+                  <TableCell>{c.startDate ?? '-'}</TableCell>
+                  <TableCell>{c.endDate ?? '-'}</TableCell>
+                  <TableCell>
+                    <TableActions>
+                      <Button size="small" appearance="subtle" onClick={() => navigateTo(`/classes/${c.id}`)}>View</Button>
+                      {canManage ? <Button size="small" appearance="subtle" onClick={() => navigateTo(`/classes/${c.id}/edit`)}>Edit</Button> : null}
+                      <Button size="small" appearance="subtle" onClick={() => navigateTo(`/classes/${c.id}/sessions`)}>Sessions</Button>
+                    </TableActions>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </TableCard>
+    </PageStack>
   )
 }

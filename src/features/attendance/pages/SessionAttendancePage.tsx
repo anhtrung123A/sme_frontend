@@ -4,6 +4,7 @@ import { getClassSessionApi } from '../../classes/api'
 import { navigateTo } from '../../../lib/navigation'
 import { bulkSaveAttendanceApi, completeSessionApi, getSessionAttendanceApi } from '../api'
 import type { SessionAttendanceItem } from '../types'
+import { formatStatusLabel } from '../../../lib/formatStatus'
 
 const statuses = ['present', 'late', 'absent', 'excused'] as const
 
@@ -48,7 +49,7 @@ export function SessionAttendancePage({ sessionId }: { sessionId: string }) {
         <div><strong>Time:</strong> {String(session.startTime).slice(0, 8)} - {String(session.endTime).slice(0, 8)}</div>
         <div><strong>Room:</strong> {session.roomName ?? '-'}</div>
         <div><strong>Teacher:</strong> {session.teacherUserName ?? '-'}</div>
-        <div><strong>Status:</strong> {session.status}</div>
+        <div><strong>Status:</strong> {formatStatusLabel(session.status)}</div>
         <div><strong>Topic:</strong> {session.topic ?? '-'}</div>
       </div>
 

@@ -36,7 +36,7 @@ export async function getUsersApi(query: UserQuery = {}): Promise<PagedResult<Us
     branchId: query.branchId,
     status: query.status,
     page: query.page ?? 1,
-    pageSize: query.pageSize ?? 50,
+    pageSize: query.pageSize ?? 20,
   })
 
   const response = await apiRequest<ApiResponse<PagedResult<UserDto>>>(`/users?${qs}`)

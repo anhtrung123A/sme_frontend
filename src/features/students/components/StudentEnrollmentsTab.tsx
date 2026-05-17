@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Button, MessageBar, MessageBarBody, Table, TableBody, TableCell, TableHeader, TableHeaderCell, TableRow } from '@fluentui/react-components'
 import { navigateTo } from '../../../lib/navigation'
 import { getStudentEnrollmentsApi } from '../../enrollments/api'
 import { EnrollmentStatusBadge } from '../../enrollments/components/EnrollmentStatusBadge'
@@ -20,15 +21,14 @@ export function StudentEnrollmentsTab({ studentId }: { studentId: number }) {
 
   return (
     <div>
-      <div className="users-toolbar">
-        <div />
-        <button className="ms-button" onClick={() => navigateTo(`/enrollments/create?studentId=${studentId}`)}>Create Enrollment</button>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
+        <Button appearance="primary" onClick={() => navigateTo(`/enrollments/create?studentId=${studentId}`)}>Create Enrollment</Button>
       </div>
-      {error ? <p className="auth-error">{error}</p> : null}
-      <table className="ms-table">
-        <thead><tr><th>Course</th><th>Class</th><th>Status</th><th>Final Amount</th><th>Start Date</th><th>End Date</th><th>Actions</th></tr></thead>
-        <tbody>{items.map((x)=><tr key={x.id}><td>{x.courseName}</td><td>{x.className ?? '-'}</td><td><EnrollmentStatusBadge status={x.status} /></td><td>{x.finalAmount.toLocaleString()}</td><td>{x.startDate ?? '-'}</td><td>{x.endDate ?? '-'}</td><td><button className="table-action-btn" onClick={()=>navigateTo(`/enrollments/${x.id}`)}>View</button></td></tr>)}</tbody>
-      </table>
+      {error ? <MessageBar intent="error"><MessageBarBody>{error}</MessageBarBody></MessageBar> : null}
+      <Table aria-label="Student enrollments">
+        <TableHeader><TableRow><TableHeaderCell>Course</TableHeaderCell><TableHeaderCell>Class</TableHeaderCell><TableHeaderCell>Status</TableHeaderCell><TableHeaderCell>Final Amount</TableHeaderCell><TableHeaderCell>Start Date</TableHeaderCell><TableHeaderCell>End Date</TableHeaderCell><TableHeaderCell>Actions</TableHeaderCell></TableRow></TableHeader>
+        <TableBody>{items.map((x) => <TableRow key={x.id}><TableCell>{x.courseName}</TableCell><TableCell>{x.className ?? '-'}</TableCell><TableCell><EnrollmentStatusBadge status={x.status} /></TableCell><TableCell>{x.finalAmount.toLocaleString()}</TableCell><TableCell>{x.startDate ?? '-'}</TableCell><TableCell>{x.endDate ?? '-'}</TableCell><TableCell><Button size="small" appearance="subtle" onClick={() => navigateTo(`/enrollments/${x.id}`)}>View</Button></TableCell></TableRow>)}</TableBody>
+      </Table>
     </div>
   )
 }

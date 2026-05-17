@@ -1,9 +1,35 @@
 import { useEffect, useMemo, useState } from 'react'
+import {
+  Button,
+  Card,
+  Field,
+  Input,
+  MessageBar,
+  MessageBarBody,
+  Select,
+  Text,
+  makeStyles,
+  tokens,
+} from '@fluentui/react-components'
 import { navigateTo, useCurrentPath } from '../../../lib/navigation'
 import { createEnrollmentApi, getClassesLiteApi, getCoursesLiteApi, getStudentsLiteApi, getUsersLiteApi } from '../api'
 import type { ClassLite, CourseLite, StudentLite, UserLite } from '../types'
 
+const useStyles = makeStyles({
+  formCard: { maxWidth: '980px', padding: tokens.spacingHorizontalL },
+  grid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(2, minmax(220px, 1fr))',
+    gap: tokens.spacingHorizontalM,
+    '@media (max-width: 760px)': { gridTemplateColumns: '1fr' },
+  },
+  full: { gridColumn: '1 / -1' },
+  preview: { padding: tokens.spacingHorizontalM, border: `1px solid ${tokens.colorNeutralStroke2}`, borderRadius: tokens.borderRadiusMedium },
+  actions: { marginTop: tokens.spacingVerticalL, display: 'flex', justifyContent: 'flex-end', gap: tokens.spacingHorizontalS },
+})
+
 export function EnrollmentCreatePage() {
+  const styles = useStyles()
   const path = useCurrentPath()
   const preselectedStudentId = useMemo(() => {
     const idx = path.indexOf('?')
@@ -65,23 +91,29 @@ export function EnrollmentCreatePage() {
   }
 
   return (
-    <form className="user-form" onSubmit={submit}>
-      <label className="form-field"><span>Student</span><select className="toolbar-select" value={studentId} onChange={(e)=>setStudentId(e.target.value)}><option value="">Select student</option>{students.map((x)=><option key={x.id} value={x.id}>{x.studentCode} - {x.fullName}</option>)}</select></label>
-      <label className="form-field"><span>Course</span><select className="toolbar-select" value={courseId} onChange={(e)=>setCourseId(e.target.value)}><option value="">Select course</option>{courses.map((x)=><option key={x.id} value={x.id}>{x.name}</option>)}</select></label>
-      <label className="form-field"><span>Class (optional)</span><select className="toolbar-select" value={classId} onChange={(e)=>setClassId(e.target.value)}><option value="">Unassigned</option>{classes.map((x)=><option key={x.id} value={x.id}>{x.classCode} - {x.name}</option>)}</select></label>
-      <label className="form-field"><span>Sales owner (optional)</span><select className="toolbar-select" value={salesUserId} onChange={(e)=>setSalesUserId(e.target.value)}><option value="">Select sales</option>{users.map((x)=><option key={x.id} value={x.id}>{x.fullName}</option>)}</select></label>
-      <label className="form-field"><span>Start date</span><input className="toolbar-input" type="date" value={startDate} onChange={(e)=>setStartDate(e.target.value)} /></label>
-      <label className="form-field"><span>End date</span><input className="toolbar-input" type="date" value={endDate} onChange={(e)=>setEndDate(e.target.value)} /></label>
-      <label className="form-field"><span>Discount amount</span><input className="toolbar-input" type="number" min={0} value={discountAmount} onChange={(e)=>setDiscountAmount(e.target.value)} /></label>
-      <label className="form-field"><span>Note</span><input className="toolbar-input" value={note} onChange={(e)=>setNote(e.target.value)} /></label>
-      <div className="form-fieldset">
-        <strong>Amount preview</strong>
-        <div style={{ marginTop: 8 }}>Tuition Fee: {Number(tuitionFee ?? 0).toLocaleString()}</div>
-        <div>Discount: {Number(discountAmount || 0).toLocaleString()}</div>
-        <div>Final Amount: {finalAmount.toLocaleString()}</div>
-      </div>
-      {error ? <p className="auth-error" style={{ gridColumn: '1 / -1' }}>{error}</p> : null}
-      <div className="form-actions"><button className="ms-button ms-button--secondary" type="button" onClick={()=>navigateTo('/enrollments')}>Cancel</button><button className="ms-button" type="submit">Create enrollment</button></div>
-    </form>
+    <Card className={styles.formCard}>
+      <form onSubmit={submit}>
+        <div className={styles.grid}>
+          <Field label="Student" required><Select value={studentId} onChange={(e) => setStudentId(e.currentTarget.value)}><option value="">Select student</option>{students.map((x) => <option key={x.id} value={x.id}>{x.studentCode} - {x.fullName}</option>)}</Select></Field>
+          <Field label="Course" required><Select value={courseId} onChange={(e) => setCourseId(e.currentTarget.value)}><option value="">Select course</option>{courses.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}</Select></Field>
+          <Field label="Class (optional)"><Select value={classId} onChange={(e) => setClassId(e.currentTarget.value)}><option value="">Unassigned</option>{classes.map((x) => <option key={x.id} value={x.id}>{x.classCode} - {x.name}</option>)}</Select></Field>
+          <Field label="Sales owner (optional)"><Select value={salesUserId} onChange={(e) => setSalesUserId(e.currentTarget.value)}><option value="">Select sales</option>{users.map((x) => <option key={x.id} value={x.id}>{x.fullName}</option>)}</Select></Field>
+          <Field label="Start date"><Input type="date" value={startDate} onChange={(_, d) => setStartDate(d.value)} /></Field>
+          <Field label="End date"><Input type="date" value={endDate} onChange={(_, d) => setEndDate(d.value)} /></Field>
+          <Field label="Discount amount"><Input type="number" min={0} value={discountAmount} onChange={(_, d) => setDiscountAmount(d.value)} /></Field>
+          <Field label="Note"><Input value={note} onChange={(_, d) => setNote(d.value)} /></Field>
+          <div className={styles.full}>
+            <div className={styles.preview}>
+              <Text weight="semibold">Amount preview</Text>
+              <Text block>Tuition Fee: {Number(tuitionFee ?? 0).toLocaleString()}</Text>
+              <Text block>Discount: {Number(discountAmount || 0).toLocaleString()}</Text>
+              <Text block>Final Amount: {finalAmount.toLocaleString()}</Text>
+            </div>
+          </div>
+        </div>
+        {error ? <MessageBar intent="error"><MessageBarBody>{error}</MessageBarBody></MessageBar> : null}
+        <div className={styles.actions}><Button appearance="secondary" type="button" onClick={() => navigateTo('/enrollments')}>Cancel</Button><Button appearance="primary" type="submit">Create enrollment</Button></div>
+      </form>
+    </Card>
   )
 }

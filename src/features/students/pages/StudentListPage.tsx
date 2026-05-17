@@ -1,12 +1,39 @@
 import { useEffect, useMemo, useState } from 'react'
+import {
+  Badge,
+  Button,
+  Field,
+  MessageBar,
+  MessageBarBody,
+  SearchBox,
+  Select,
+  Table,
+  TableBody,
+  TableCell,
+  TableHeader,
+  TableHeaderCell,
+  TableRow,
+} from '@fluentui/react-components'
+import { Add24Regular } from '@fluentui/react-icons'
 import { navigateTo } from '../../../lib/navigation'
+import { formatStatusLabel } from '../../../lib/formatStatus'
+import { Pagination } from '../../../components/ui/Pagination'
+import { EmptyState, FilterGroup, FilterItem, KpiCard, KpiGrid, PageStack, PageToolbar, TableActions, TableCard } from '../../../components/ui/FluentPage'
 import { useAuthRoles } from '../../auth/useAuthRoles'
 import { deleteStudentApi, getBranchesApi, getStudentsApi, updateStudentStatusApi } from '../api'
 import type { BranchDto, StudentDto } from '../types'
 
 const statuses = ['potential', 'active', 'inactive', 'completed', 'dropped']
 
+function getStudentStatusColor(status: string) {
+  if (status === 'active' || status === 'completed') return 'success'
+  if (status === 'potential') return 'brand'
+  if (status === 'inactive' || status === 'dropped') return 'danger'
+  return 'subtle'
+}
+
 export function StudentListPage() {
+  const pageSize = 20
   const roles = useAuthRoles()
   const canDelete = roles.includes('Admin') || roles.includes('Manager')
 
@@ -16,6 +43,8 @@ export function StudentListPage() {
   const [status, setStatus] = useState('')
   const [branchId, setBranchId] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [page, setPage] = useState(1)
+  const [totalCount, setTotalCount] = useState(0)
 
   const kpis = useMemo(() => {
     return {
@@ -26,58 +55,103 @@ export function StudentListPage() {
     }
   }, [items])
 
-  const load = async () => {
+  const load = async (nextPage = page) => {
     try {
       const [students, br] = await Promise.all([
-        getStudentsApi({ keyword: keyword || undefined, status: status || undefined, branchId: branchId ? Number(branchId) : undefined }),
+        getStudentsApi({ keyword: keyword || undefined, status: status || undefined, branchId: branchId ? Number(branchId) : undefined, page: nextPage, pageSize }),
         getBranchesApi(),
       ])
       setItems(students.items)
+      setTotalCount(students.totalCount)
+      setPage(students.pageNumber)
       setBranches(br)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load students')
     }
   }
 
-  useEffect(() => { void load() }, [])
+  useEffect(() => { void load(1) }, [])
 
   return (
-    <>
-      <div className="kpi-grid">
-        <div className="kpi-card"><span>Total Students</span><strong>{kpis.total}</strong></div>
-        <div className="kpi-card"><span>Potential</span><strong>{kpis.potential}</strong></div>
-        <div className="kpi-card"><span>Active</span><strong>{kpis.active}</strong></div>
-        <div className="kpi-card"><span>Inactive / Dropped</span><strong>{kpis.dropped}</strong></div>
-      </div>
+    <PageStack>
+      <KpiGrid>
+        <KpiCard label="Total Students" value={kpis.total} />
+        <KpiCard label="Potential" value={kpis.potential} />
+        <KpiCard label="Active" value={kpis.active} />
+        <KpiCard label="Inactive / Dropped" value={kpis.dropped} />
+      </KpiGrid>
 
-      <div className="users-toolbar">
-        <div className="users-filters">
-          <input className="toolbar-input" placeholder="Keyword" value={keyword} onChange={(e)=>setKeyword(e.target.value)} />
-          <select className="toolbar-select" value={status} onChange={(e)=>setStatus(e.target.value)}><option value="">All status</option>{statuses.map((s)=><option key={s}>{s}</option>)}</select>
-          <select className="toolbar-select" value={branchId} onChange={(e)=>setBranchId(e.target.value)}><option value="">All branches</option>{branches.map((b)=><option key={b.id} value={b.id}>{b.name}</option>)}</select>
-          <button className="ms-button ms-button--secondary" onClick={()=>void load()}>Apply</button>
-        </div>
-        <button className="ms-button" onClick={()=>navigateTo('/students/create')}>Create student</button>
-      </div>
+      <PageToolbar>
+        <FilterGroup>
+          <FilterItem>
+            <Field label="Search">
+              <SearchBox placeholder="Keyword" value={keyword} onChange={(_, data) => setKeyword(data.value)} />
+            </Field>
+          </FilterItem>
+          <FilterItem>
+            <Field label="Status">
+              <Select value={status} onChange={(e) => setStatus(e.currentTarget.value)}>
+                <option value="">All status</option>
+                {statuses.map((s) => <option key={s}>{formatStatusLabel(s)}</option>)}
+              </Select>
+            </Field>
+          </FilterItem>
+          <FilterItem>
+            <Field label="Branch">
+              <Select value={branchId} onChange={(e) => setBranchId(e.currentTarget.value)}>
+                <option value="">All branches</option>
+                {branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+              </Select>
+            </Field>
+          </FilterItem>
+          <Button appearance="secondary" onClick={() => void load(1)}>Apply</Button>
+        </FilterGroup>
+        <Button appearance="primary" icon={<Add24Regular />} onClick={() => navigateTo('/students/create')}>
+          Create student
+        </Button>
+      </PageToolbar>
 
-      {error ? <p className="auth-error">{error}</p> : null}
+      {error ? <MessageBar intent="error"><MessageBarBody>{error}</MessageBarBody></MessageBar> : null}
 
-      <table className="ms-table">
-        <thead><tr><th>Student code</th><th>Full name</th><th>Phone</th><th>Email</th><th>Status</th><th>Branch</th><th>Actions</th></tr></thead>
-        <tbody>
-          {items.map((s)=> (
-            <tr key={s.id}>
-              <td>{s.studentCode}</td><td>{s.fullName}</td><td>{s.phone ?? '-'}</td><td>{s.email ?? '-'}</td><td>{s.status}</td><td>{s.branchName ?? '-'}</td>
-              <td><div className="table-actions">
-                <button className="table-action-btn" onClick={()=>navigateTo(`/students/${s.id}`)}>View detail</button>
-                <button className="table-action-btn" onClick={()=>navigateTo(`/students/${s.id}/edit`)}>Edit</button>
-                <button className="table-action-btn" onClick={async()=>{const ns=window.prompt('New status:', s.status); if(ns){await updateStudentStatusApi(s.id, ns); await load()}}}>Change status</button>
-                {canDelete ? <button className="table-action-btn" onClick={async()=>{if(window.confirm(`Delete ${s.fullName}?`)){await deleteStudentApi(s.id); await load()}}}>Delete</button> : null}
-              </div></td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </>
+      <TableCard title="Students" subtitle={`${totalCount.toLocaleString()} total students`} footer={<Pagination page={page} pageSize={pageSize} totalCount={totalCount} onPageChange={(p) => void load(p)} />}>
+        {items.length === 0 ? (
+          <EmptyState title="No students found" description="Adjust filters or create a new student." />
+        ) : (
+          <Table aria-label="Students table">
+            <TableHeader>
+              <TableRow>
+                <TableHeaderCell>Student code</TableHeaderCell>
+                <TableHeaderCell>Full name</TableHeaderCell>
+                <TableHeaderCell>Phone</TableHeaderCell>
+                <TableHeaderCell>Email</TableHeaderCell>
+                <TableHeaderCell>Status</TableHeaderCell>
+                <TableHeaderCell>Branch</TableHeaderCell>
+                <TableHeaderCell>Actions</TableHeaderCell>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {items.map((s) => (
+                <TableRow key={s.id}>
+                  <TableCell>{s.studentCode}</TableCell>
+                  <TableCell>{s.fullName}</TableCell>
+                  <TableCell>{s.phone ?? '-'}</TableCell>
+                  <TableCell>{s.email ?? '-'}</TableCell>
+                  <TableCell><Badge appearance="filled" color={getStudentStatusColor(s.status)}>{formatStatusLabel(s.status)}</Badge></TableCell>
+                  <TableCell>{s.branchName ?? '-'}</TableCell>
+                  <TableCell>
+                    <TableActions>
+                      <Button size="small" appearance="subtle" onClick={() => navigateTo(`/students/${s.id}`)}>View</Button>
+                      <Button size="small" appearance="subtle" onClick={() => navigateTo(`/students/${s.id}/edit`)}>Edit</Button>
+                      <Button size="small" appearance="subtle" onClick={async () => { const ns = window.prompt('New status:', s.status); if (ns) { await updateStudentStatusApi(s.id, ns); await load() } }}>Status</Button>
+                      {canDelete ? <Button size="small" appearance="subtle" onClick={async () => { if (window.confirm(`Delete ${s.fullName}?`)) { await deleteStudentApi(s.id); await load() } }}>Delete</Button> : null}
+                    </TableActions>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </TableCard>
+    </PageStack>
   )
 }

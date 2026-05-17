@@ -3,6 +3,7 @@ import { useAuth } from '../../auth/hooks'
 import { getClassesApi, getClassSessionsApi } from '../../classes/api'
 import { navigateTo } from '../../../lib/navigation'
 import type { ClassSessionDto } from '../../classes/types'
+import { formatStatusLabel } from '../../../lib/formatStatus'
 
 type SessionRow = ClassSessionDto & { className: string }
 
@@ -33,14 +34,14 @@ export function MySessionsPage() {
       <div className="users-toolbar">
         <div className="users-filters">
           <input className="toolbar-input" type="date" value={date} onChange={(e)=>setDate(e.target.value)} />
-          <select className="toolbar-select" value={status} onChange={(e)=>setStatus(e.target.value)}><option value="">All status</option>{['scheduled', 'completed', 'cancelled'].map((x)=><option key={x}>{x}</option>)}</select>
+          <select className="toolbar-select" value={status} onChange={(e)=>setStatus(e.target.value)}><option value="">All status</option>{['scheduled', 'completed', 'cancelled'].map((x)=><option key={x}>{formatStatusLabel(x)}</option>)}</select>
           <button className="ms-button ms-button--secondary" onClick={()=>void load()}>Refresh</button>
         </div>
       </div>
       {error ? <p className="auth-error">{error}</p> : null}
       <table className="ms-table">
         <thead><tr><th>Session date</th><th>Class name</th><th>Time</th><th>Room</th><th>Topic</th><th>Status</th><th>Action</th></tr></thead>
-        <tbody>{filtered.map((s)=><tr key={s.id}><td>{s.sessionDate}</td><td>{s.className}</td><td>{String(s.startTime).slice(0,8)} - {String(s.endTime).slice(0,8)}</td><td>{s.roomName ?? '-'}</td><td>{s.topic ?? '-'}</td><td>{s.status}</td><td><div className="table-actions"><button className="table-action-btn" onClick={()=>navigateTo(`/attendance/sessions/${s.id}`)}>Mark Attendance</button><button className="table-action-btn" onClick={()=>navigateTo(`/attendance/sessions/${s.id}`)}>View</button></div></td></tr>)}</tbody>
+        <tbody>{filtered.map((s)=><tr key={s.id}><td>{s.sessionDate}</td><td>{s.className}</td><td>{String(s.startTime).slice(0,8)} - {String(s.endTime).slice(0,8)}</td><td>{s.roomName ?? '-'}</td><td>{s.topic ?? '-'}</td><td>{formatStatusLabel(s.status)}</td><td><div className="table-actions"><button className="table-action-btn" onClick={()=>navigateTo(`/attendance/sessions/${s.id}`)}>Mark Attendance</button><button className="table-action-btn" onClick={()=>navigateTo(`/attendance/sessions/${s.id}`)}>View</button></div></td></tr>)}</tbody>
       </table>
     </>
   )

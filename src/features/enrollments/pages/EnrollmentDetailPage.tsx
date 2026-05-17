@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react'
+import { Button, Card, MessageBar, MessageBarBody, Text } from '@fluentui/react-components'
 import { useAuthRoles } from '../../auth/useAuthRoles'
 import { navigateTo } from '../../../lib/navigation'
 import { assignEnrollmentClassApi, getClassesLiteApi, getEnrollmentApi, updateEnrollmentStatusApi } from '../api'
 import { createInvoiceFromEnrollmentApi } from '../../invoices/api'
 import { EnrollmentStatusBadge } from '../components/EnrollmentStatusBadge'
 import type { ClassLite, EnrollmentDto } from '../types'
+import { DetailCard, PageStack } from '../../../components/ui/FluentPage'
 
 export function EnrollmentDetailPage({ enrollmentId }: { enrollmentId: string }) {
   const id = Number(enrollmentId)
@@ -31,37 +33,35 @@ export function EnrollmentDetailPage({ enrollmentId }: { enrollmentId: string })
   if (!item) return <p>{error ?? 'Loading...'}</p>
 
   return (
-    <>
-      {error ? <p className="auth-error">{error}</p> : null}
-      <div className="users-toolbar">
-        <div className="users-filters">
-          <button className="table-action-btn" onClick={() => navigateTo(`/enrollments/${item.id}/edit`)}>Edit enrollment</button>
-          {canAssignClass ? <button className="table-action-btn" onClick={async()=>{const selected = window.prompt('Class ID (empty to unassign)', item.classId ? String(item.classId) : ''); if (selected === null) return; await assignEnrollmentClassApi(item.id, selected.trim() ? Number(selected) : null); await load()}}>Assign class</button> : null}
-          {canChangeStatus ? <button className="table-action-btn" onClick={async()=>{const status = window.prompt('New status', item.status); if (!status) return; const note = window.prompt('Note (optional)', item.note ?? '') ?? undefined; await updateEnrollmentStatusApi(item.id, status, note); await load()}}>Change status</button> : null}
-          {canCreateInvoice ? <button className="table-action-btn" onClick={async()=>{const dueDate = window.prompt('Due date (YYYY-MM-DD)', '') || undefined; const invoice = await createInvoiceFromEnrollmentApi(item.id, dueDate); navigateTo(`/invoices/${invoice.id}`)}}>Create invoice</button> : null}
-        </div>
+    <PageStack>
+      {error ? <MessageBar intent="error"><MessageBarBody>{error}</MessageBarBody></MessageBar> : null}
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <Button appearance="secondary" onClick={() => navigateTo(`/enrollments/${item.id}/edit`)}>Edit enrollment</Button>
+        {canAssignClass ? <Button appearance="secondary" onClick={async () => { const selected = window.prompt('Class ID (empty to unassign)', item.classId ? String(item.classId) : ''); if (selected === null) return; await assignEnrollmentClassApi(item.id, selected.trim() ? Number(selected) : null); await load() }}>Assign class</Button> : null}
+        {canChangeStatus ? <Button appearance="secondary" onClick={async () => { const status = window.prompt('New status', item.status); if (!status) return; const note = window.prompt('Note (optional)', item.note ?? '') ?? undefined; await updateEnrollmentStatusApi(item.id, status, note); await load() }}>Change status</Button> : null}
+        {canCreateInvoice ? <Button appearance="primary" onClick={async () => { const dueDate = window.prompt('Due date (YYYY-MM-DD)', '') || undefined; const invoice = await createInvoiceFromEnrollmentApi(item.id, dueDate); navigateTo(`/invoices/${invoice.id}`) }}>Create invoice</Button> : null}
       </div>
 
-      <div className="detail-grid">
-        <div><strong>Student:</strong> {item.studentName}</div>
-        <div><strong>Course:</strong> {item.courseName}</div>
-        <div><strong>Class:</strong> {item.className ?? '-'}</div>
-        <div><strong>Sales owner:</strong> {item.salesUserName ?? '-'}</div>
-        <div><strong>Status:</strong> <EnrollmentStatusBadge status={item.status} /></div>
-        <div><strong>Tuition fee:</strong> {item.tuitionFee.toLocaleString()}</div>
-        <div><strong>Discount amount:</strong> {item.discountAmount.toLocaleString()}</div>
-        <div><strong>Final amount:</strong> {item.finalAmount.toLocaleString()}</div>
-        <div><strong>Start date:</strong> {item.startDate ?? '-'}</div>
-        <div><strong>End date:</strong> {item.endDate ?? '-'}</div>
-        <div><strong>Enrolled at:</strong> {item.enrolledAt ? new Date(item.enrolledAt).toLocaleString() : '-'}</div>
-        <div><strong>Note:</strong> {item.note ?? '-'}</div>
-      </div>
+      <DetailCard>
+        <div><Text weight="semibold">Student</Text><Text>{item.studentName}</Text></div>
+        <div><Text weight="semibold">Course</Text><Text>{item.courseName}</Text></div>
+        <div><Text weight="semibold">Class</Text><Text>{item.className ?? '-'}</Text></div>
+        <div><Text weight="semibold">Sales owner</Text><Text>{item.salesUserName ?? '-'}</Text></div>
+        <div><Text weight="semibold">Status</Text><EnrollmentStatusBadge status={item.status} /></div>
+        <div><Text weight="semibold">Tuition fee</Text><Text>{item.tuitionFee.toLocaleString()}</Text></div>
+        <div><Text weight="semibold">Discount amount</Text><Text>{item.discountAmount.toLocaleString()}</Text></div>
+        <div><Text weight="semibold">Final amount</Text><Text>{item.finalAmount.toLocaleString()}</Text></div>
+        <div><Text weight="semibold">Start date</Text><Text>{item.startDate ?? '-'}</Text></div>
+        <div><Text weight="semibold">End date</Text><Text>{item.endDate ?? '-'}</Text></div>
+        <div><Text weight="semibold">Enrolled at</Text><Text>{item.enrolledAt ? new Date(item.enrolledAt).toLocaleString() : '-'}</Text></div>
+        <div><Text weight="semibold">Note</Text><Text>{item.note ?? '-'}</Text></div>
+      </DetailCard>
 
-      <div style={{ marginTop: 16 }}>
-        <h3>History</h3>
-        <p>Enrollment created and updated actions are tracked on the backend audit trail.</p>
-        <p>Available classes for this course: {classes.filter((x)=>x.status !== 'completed' && x.status !== 'cancelled').length}</p>
-      </div>
-    </>
+      <Card>
+        <Text weight="semibold">History</Text>
+        <Text block>Enrollment created and updated actions are tracked on the backend audit trail.</Text>
+        <Text block>Available classes for this course: {classes.filter((x) => x.status !== 'completed' && x.status !== 'cancelled').length}</Text>
+      </Card>
+    </PageStack>
   )
 }

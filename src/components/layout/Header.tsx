@@ -1,147 +1,209 @@
-import { useEffect, useRef, useState } from 'react'
-import { Bell, Menu, Search, Settings, X } from 'lucide-react'
+import { useState } from 'react'
+import {
+  Avatar,
+  Button,
+  Drawer,
+  DrawerBody,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerHeaderTitle,
+  SearchBox,
+  Text,
+  makeStyles,
+  tokens,
+} from '@fluentui/react-components'
+import {
+  Alert24Regular,
+  Dismiss24Regular,
+  Navigation24Regular,
+  Settings24Regular,
+} from '@fluentui/react-icons'
 import { useAuth } from '../../features/auth/hooks'
-import { useCurrentPath } from '../../lib/navigation'
 import { navigateTo } from '../../lib/navigation'
 
 type HeaderProps = {
+  title: string
   onToggleSidebar: () => void
 }
 
-export function Header({ onToggleSidebar }: HeaderProps) {
+const useStyles = makeStyles({
+  root: {
+    height: '56px',
+    flexShrink: 0,
+    display: 'grid',
+    gridTemplateColumns: 'minmax(240px, auto) minmax(240px, 520px) minmax(180px, auto)',
+    alignItems: 'center',
+    gap: tokens.spacingHorizontalL,
+    padding: `0 ${tokens.spacingHorizontalL}`,
+    borderBottom: `1px solid ${tokens.colorNeutralStroke2}`,
+    backgroundColor: tokens.colorNeutralBackground1,
+    boxShadow: tokens.shadow2,
+    zIndex: 10,
+    '@media (max-width: 840px)': {
+      gridTemplateColumns: '1fr auto',
+    },
+  },
+  left: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: tokens.spacingHorizontalS,
+    minWidth: 0,
+  },
+  brandBlock: {
+    minWidth: 0,
+    display: 'flex',
+    flexDirection: 'column',
+    lineHeight: tokens.lineHeightBase200,
+  },
+  brand: {
+    color: tokens.colorBrandForeground1,
+  },
+  page: {
+    color: tokens.colorNeutralForeground3,
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
+  },
+  search: {
+    justifySelf: 'center',
+    width: '100%',
+    '@media (max-width: 840px)': {
+      display: 'none',
+    },
+  },
+  right: {
+    justifySelf: 'end',
+    display: 'flex',
+    alignItems: 'center',
+    gap: tokens.spacingHorizontalXS,
+  },
+  drawerBody: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: tokens.spacingVerticalL,
+  },
+  profileBlock: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: tokens.spacingHorizontalM,
+  },
+  meta: {
+    display: 'grid',
+    gap: tokens.spacingVerticalXXS,
+  },
+  muted: {
+    color: tokens.colorNeutralForeground3,
+  },
+})
+
+export function Header({ title, onToggleSidebar }: HeaderProps) {
   const { currentUser, logout } = useAuth()
-  const currentPath = useCurrentPath()
+  const styles = useStyles()
 
   const [isProfileOpen, setIsProfileOpen] = useState(false)
-  const [isSearchOpen, setIsSearchOpen] = useState(false)
   const [searchValue, setSearchValue] = useState('')
-
-  const searchContainerRef = useRef<HTMLDivElement | null>(null)
-
-  useEffect(() => {
-    setIsSearchOpen(false)
-    setIsProfileOpen(false)
-  }, [currentPath])
-
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        setIsSearchOpen(false)
-        setIsProfileOpen(false)
-      }
-    }
-
-    window.addEventListener('keydown', onKeyDown)
-    return () => window.removeEventListener('keydown', onKeyDown)
-  }, [])
-
-  useEffect(() => {
-    const onPointerDown = (event: MouseEvent) => {
-      if (!isSearchOpen) return
-      const target = event.target as Node | null
-      const root = searchContainerRef.current
-      if (root && target && !root.contains(target)) {
-        setIsSearchOpen(false)
-      }
-    }
-
-    window.addEventListener('mousedown', onPointerDown)
-    return () => window.removeEventListener('mousedown', onPointerDown)
-  }, [isSearchOpen])
 
   return (
     <>
-      <header className="top-navbar">
-        <div className="top-navbar-left">
-          <button className="icon-btn" type="button" aria-label="Toggle sidebar" onClick={onToggleSidebar}>
-            <Menu size={16} />
-          </button>
-          <div className="top-brand">SME CRM</div>
-          <div className="top-divider">|</div>
-          <div className="top-page">Home</div>
+      <header className={styles.root}>
+        <div className={styles.left}>
+          <Button
+            appearance="subtle"
+            icon={<Navigation24Regular />}
+            aria-label="Toggle sidebar"
+            onClick={onToggleSidebar}
+          />
+          <div className={styles.brandBlock}>
+            <Text className={styles.brand} weight="semibold">
+              EnglishCenter CRM
+            </Text>
+            <Text className={styles.page} size={200}>
+              {title}
+            </Text>
+          </div>
         </div>
 
-        <div className="top-navbar-center" ref={searchContainerRef}>
-          <label className={`top-search ${isSearchOpen ? 'focused' : ''}`}>
-            <Search size={16} />
-            <input
-              type="text"
-              placeholder="Search"
-              value={searchValue}
-              onFocus={() => setIsSearchOpen(true)}
-              onChange={(event) => setSearchValue(event.target.value)}
-            />
-            {searchValue ? (
-              <button type="button" className="search-clear" onClick={() => setSearchValue('')}>
-                <X size={16} />
-              </button>
-            ) : null}
-          </label>
+        <SearchBox
+          className={styles.search}
+          aria-label="Search workspace"
+          placeholder="Search students, leads, classes"
+          value={searchValue}
+          onChange={(_, data) => setSearchValue(data.value)}
+        />
 
-          {isSearchOpen ? (
-            <div className="search-dropdown">
-              <div className="search-empty">No results found</div>
-            </div>
-          ) : null}
-        </div>
-
-        <div className="top-navbar-right">
-          <button className="icon-btn" type="button" aria-label="Notifications">
-            <Bell size={16} />
-          </button>
-          <button className="icon-btn" type="button" aria-label="Settings">
-            <Settings size={16} />
-          </button>
-          <button
-            className="avatar-btn"
-            type="button"
-            onClick={() => setIsProfileOpen((prev) => !prev)}
+        <div className={styles.right}>
+          <Button appearance="subtle" icon={<Alert24Regular />} aria-label="Notifications" />
+          <Button appearance="subtle" icon={<Settings24Regular />} aria-label="Settings" />
+          <Button
+            appearance="subtle"
+            icon={<Avatar name={currentUser?.fullName ?? currentUser?.email ?? 'User'} size={28} />}
             aria-label="Open profile panel"
-          >
-            {currentUser?.fullName?.charAt(0).toUpperCase() ?? 'U'}
-          </button>
+            onClick={() => setIsProfileOpen(true)}
+          />
         </div>
       </header>
 
-      {isProfileOpen ? (
-        <aside className="profile-drawer">
-          <div className="profile-header">
-            <h2>Profile</h2>
-            <button type="button" className="icon-btn" onClick={() => setIsProfileOpen(false)}>
-              <X size={16} />
-            </button>
-          </div>
-
-          <div className="profile-user-block">
-            <div className="profile-avatar">{currentUser?.fullName?.charAt(0).toUpperCase() ?? 'U'}</div>
+      <Drawer
+        type="overlay"
+        position="end"
+        open={isProfileOpen}
+        onOpenChange={(_, data) => setIsProfileOpen(data.open)}
+      >
+        <DrawerHeader>
+          <DrawerHeaderTitle
+            action={
+              <Button
+                appearance="subtle"
+                aria-label="Close profile panel"
+                icon={<Dismiss24Regular />}
+                onClick={() => setIsProfileOpen(false)}
+              />
+            }
+          >
+            Profile
+          </DrawerHeaderTitle>
+        </DrawerHeader>
+        <DrawerBody className={styles.drawerBody}>
+          <div className={styles.profileBlock}>
+            <Avatar name={currentUser?.fullName ?? currentUser?.email ?? 'User'} size={56} />
             <div>
-              <div className="profile-name">{currentUser?.fullName ?? 'Unknown user'}</div>
-              <div className="profile-email">{currentUser?.email ?? '-'}</div>
+              <Text weight="semibold" size={500}>
+                {currentUser?.fullName ?? 'Unknown user'}
+              </Text>
+              <Text className={styles.muted} block>
+                {currentUser?.email ?? '-'}
+              </Text>
             </div>
           </div>
 
-          <div className="profile-meta">
-            <div className="profile-label">Tenant Name</div>
-            <div>{currentUser?.branchName ?? 'SME English Center'}</div>
+          <div className={styles.meta}>
+            <Text className={styles.muted} size={200} weight="semibold">
+              Tenant
+            </Text>
+            <Text>{currentUser?.branchName ?? 'SME English Center'}</Text>
           </div>
-
-          <div className="profile-actions">
-            <button className="ms-button ms-button--secondary" type="button" onClick={() => navigateTo('/profile')}>
-              View profile
-            </button>
-            <button
-              className="ms-button"
-              type="button"
-              onClick={async () => {
-                await logout()
-                navigateTo('/login', true)
-              }}
-            >
-              Sign out
-            </button>
-          </div>
-        </aside>
-      ) : null}
+        </DrawerBody>
+        <DrawerFooter>
+          <Button
+            appearance="secondary"
+            onClick={() => {
+              setIsProfileOpen(false)
+              navigateTo('/profile')
+            }}
+          >
+            View profile
+          </Button>
+          <Button
+            appearance="primary"
+            onClick={async () => {
+              await logout()
+              navigateTo('/login', true)
+            }}
+          >
+            Sign out
+          </Button>
+        </DrawerFooter>
+      </Drawer>
     </>
   )
 }

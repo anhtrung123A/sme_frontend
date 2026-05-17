@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Button, MessageBar, MessageBarBody, Table, TableBody, TableCell, TableHeader, TableHeaderCell, TableRow } from '@fluentui/react-components'
 import { navigateTo } from '../../../lib/navigation'
 import { getStudentInvoicesApi } from '../../invoices/api'
 import { InvoiceStatusBadge } from '../../invoices/components/InvoiceStatusBadge'
@@ -16,11 +17,11 @@ export function StudentInvoicesTab({ studentId }: { studentId: number }) {
 
   return (
     <div>
-      {error ? <p className="auth-error">{error}</p> : null}
-      <table className="ms-table">
-        <thead><tr><th>Invoice code</th><th>Amount</th><th>Paid</th><th>Remaining</th><th>Due date</th><th>Status</th><th>Actions</th></tr></thead>
-        <tbody>{items.map((x)=><tr key={x.id}><td>{x.invoiceCode}</td><td>{x.amount.toLocaleString()}</td><td>{x.paidAmount.toLocaleString()}</td><td>{x.remainingAmount.toLocaleString()}</td><td>{x.dueDate ?? '-'}</td><td><InvoiceStatusBadge status={x.status} /></td><td><button className="table-action-btn" onClick={()=>navigateTo(`/invoices/${x.id}`)}>View</button></td></tr>)}</tbody>
-      </table>
+      {error ? <MessageBar intent="error"><MessageBarBody>{error}</MessageBarBody></MessageBar> : null}
+      <Table aria-label="Student invoices">
+        <TableHeader><TableRow><TableHeaderCell>Invoice code</TableHeaderCell><TableHeaderCell>Amount</TableHeaderCell><TableHeaderCell>Paid</TableHeaderCell><TableHeaderCell>Remaining</TableHeaderCell><TableHeaderCell>Due date</TableHeaderCell><TableHeaderCell>Status</TableHeaderCell><TableHeaderCell>Actions</TableHeaderCell></TableRow></TableHeader>
+        <TableBody>{items.map((x) => <TableRow key={x.id}><TableCell>{x.invoiceCode}</TableCell><TableCell>{x.amount.toLocaleString()}</TableCell><TableCell>{x.paidAmount.toLocaleString()}</TableCell><TableCell>{x.remainingAmount.toLocaleString()}</TableCell><TableCell>{x.dueDate ?? '-'}</TableCell><TableCell><InvoiceStatusBadge status={x.status} /></TableCell><TableCell><Button size="small" appearance="subtle" onClick={() => navigateTo(`/invoices/${x.id}`)}>View</Button></TableCell></TableRow>)}</TableBody>
+      </Table>
     </div>
   )
 }

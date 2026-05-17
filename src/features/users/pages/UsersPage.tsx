@@ -1,5 +1,33 @@
 import { useEffect, useMemo, useState } from 'react'
+import {
+  Badge,
+  Button,
+  Checkbox,
+  Dialog,
+  DialogActions,
+  DialogBody,
+  DialogContent,
+  DialogSurface,
+  DialogTitle,
+  DialogTrigger,
+  Field,
+  MessageBar,
+  MessageBarBody,
+  SearchBox,
+  Select,
+  Table,
+  TableBody,
+  TableCell,
+  TableHeader,
+  TableHeaderCell,
+  TableRow,
+  makeStyles,
+  tokens,
+} from '@fluentui/react-components'
+import { Add24Regular } from '@fluentui/react-icons'
 import { navigateTo } from '../../../lib/navigation'
+import { Pagination } from '../../../components/ui/Pagination'
+import { EmptyState, FilterGroup, FilterItem, PageStack, PageToolbar, TableActions, TableCard } from '../../../components/ui/FluentPage'
 import {
   getBranchesApi,
   getRolesApi,
@@ -11,12 +39,26 @@ import {
 import type { BranchDto, RoleDto, UserDto, UserRoleDto } from '../types'
 
 type RolesMap = Record<number, UserRoleDto[]>
+const pageSize = 20
+
+const useStyles = makeStyles({
+  roleList: {
+    display: 'grid',
+    gap: tokens.spacingVerticalS,
+    maxHeight: '280px',
+    overflowY: 'auto',
+  },
+})
 
 export function UsersPage() {
+  const styles = useStyles()
   const [users, setUsers] = useState<UserDto[]>([])
   const [rolesMap, setRolesMap] = useState<RolesMap>({})
   const [roles, setRoles] = useState<RoleDto[]>([])
   const [branches, setBranches] = useState<BranchDto[]>([])
+  const [page, setPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const [totalCount, setTotalCount] = useState(0)
   const [search, setSearch] = useState('')
   const [roleFilter, setRoleFilter] = useState('')
   const [branchFilter, setBranchFilter] = useState('')
@@ -30,18 +72,26 @@ export function UsersPage() {
     [assignUserId, users],
   )
 
-  const loadData = async () => {
+  const loadData = async (nextPage = page) => {
     setLoading(true)
     setError(null)
 
     try {
       const [usersPage, allRoles, allBranches] = await Promise.all([
-        getUsersApi({ search: search.trim(), branchId: branchFilter ? Number(branchFilter) : undefined }),
+        getUsersApi({
+          search: search.trim(),
+          branchId: branchFilter ? Number(branchFilter) : undefined,
+          page: nextPage,
+          pageSize,
+        }),
         getRolesApi(),
         getBranchesApi(),
       ])
 
       setUsers(usersPage.items)
+      setPage(usersPage.pageNumber)
+      setTotalPages(usersPage.totalPages || 1)
+      setTotalCount(usersPage.totalCount)
       setRoles(allRoles)
       setBranches(allBranches)
 
@@ -58,8 +108,17 @@ export function UsersPage() {
   }
 
   useEffect(() => {
-    void loadData()
+    void loadData(1)
   }, [])
+
+  const applyFilters = async () => {
+    await loadData(1)
+  }
+
+  const goToPage = async (nextPage: number) => {
+    if (nextPage < 1 || nextPage > totalPages || nextPage === page) return
+    await loadData(nextPage)
+  }
 
   const filteredUsers = users.filter((user) => {
     if (!roleFilter) return true
@@ -97,130 +156,140 @@ export function UsersPage() {
   }
 
   return (
-    <>
-      <div className="users-toolbar">
-        <div className="users-filters">
-          <input
-            className="toolbar-input"
-            type="text"
-            placeholder="Search by name, email, phone"
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-          />
+    <PageStack>
+      <PageToolbar>
+        <FilterGroup>
+          <FilterItem>
+            <Field label="Search">
+              <SearchBox
+                placeholder="Name, email, phone"
+                value={search}
+                onChange={(_, data) => setSearch(data.value)}
+              />
+            </Field>
+          </FilterItem>
 
-          <select className="toolbar-select" value={roleFilter} onChange={(event) => setRoleFilter(event.target.value)}>
-            <option value="">All roles</option>
-            {roles.map((role) => (
-              <option key={role.id} value={role.id}>
-                {role.name}
-              </option>
-            ))}
-          </select>
+          <FilterItem>
+            <Field label="Role">
+              <Select value={roleFilter} onChange={(event) => setRoleFilter(event.currentTarget.value)}>
+                <option value="">All roles</option>
+                {roles.map((role) => (
+                  <option key={role.id} value={role.id}>
+                    {role.name}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+          </FilterItem>
 
-          <select className="toolbar-select" value={branchFilter} onChange={(event) => setBranchFilter(event.target.value)}>
-            <option value="">All branches</option>
-            {branches.map((branch) => (
-              <option key={branch.id} value={branch.id}>
-                {branch.name}
-              </option>
-            ))}
-          </select>
+          <FilterItem>
+            <Field label="Branch">
+              <Select value={branchFilter} onChange={(event) => setBranchFilter(event.currentTarget.value)}>
+                <option value="">All branches</option>
+                {branches.map((branch) => (
+                  <option key={branch.id} value={branch.id}>
+                    {branch.name}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+          </FilterItem>
 
-          <button className="ms-button ms-button--secondary" type="button" onClick={() => void loadData()}>
+          <Button appearance="secondary" disabled={loading} onClick={() => void applyFilters()}>
             Apply filters
-          </button>
-        </div>
+          </Button>
+        </FilterGroup>
 
-        <button className="ms-button" type="button" onClick={() => navigateTo('/users/create')}>
+        <Button appearance="primary" icon={<Add24Regular />} onClick={() => navigateTo('/users/create')}>
           Create user
-        </button>
-      </div>
+        </Button>
+      </PageToolbar>
 
-      {error ? <p className="auth-error">{error}</p> : null}
-      {loading ? <p>Loading users...</p> : null}
+      {error ? <MessageBar intent="error"><MessageBarBody>{error}</MessageBarBody></MessageBar> : null}
 
-      <table className="ms-table">
-        <thead>
-          <tr>
-            <th>Name</th>
-            <th>Email</th>
-            <th>Phone</th>
-            <th>Branch</th>
-            <th>Roles</th>
-            <th>Status</th>
-            <th>Last Login</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {filteredUsers.map((user) => {
-            const userRoles = rolesMap[user.id] ?? []
-            const isActive = user.status.toLowerCase() === 'active'
+      <TableCard
+        title="System users"
+        subtitle={`Showing ${filteredUsers.length} of ${totalCount} users`}
+        footer={<Pagination page={page} pageSize={pageSize} totalCount={totalCount} onPageChange={(p) => void goToPage(p)} />}
+      >
+        {filteredUsers.length === 0 ? (
+          <EmptyState title={loading ? 'Loading users' : 'No users found'} description={loading ? undefined : 'Adjust filters or create a new user.'} />
+        ) : (
+          <Table aria-label="Users table">
+            <TableHeader>
+              <TableRow>
+                <TableHeaderCell>Name</TableHeaderCell>
+                <TableHeaderCell>Email</TableHeaderCell>
+                <TableHeaderCell>Phone</TableHeaderCell>
+                <TableHeaderCell>Branch</TableHeaderCell>
+                <TableHeaderCell>Roles</TableHeaderCell>
+                <TableHeaderCell>Status</TableHeaderCell>
+                <TableHeaderCell>Actions</TableHeaderCell>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredUsers.map((user) => {
+                const userRoles = rolesMap[user.id] ?? []
+                const isActive = user.status.toLowerCase() === 'active'
 
-            return (
-              <tr key={user.id}>
-                <td>{user.fullName}</td>
-                <td>{user.email}</td>
-                <td>{user.phone || '-'}</td>
-                <td>{user.branchName || '-'}</td>
-                <td>{userRoles.length ? userRoles.map((role) => role.roleName).join(', ') : '-'}</td>
-                <td>
-                  <span className={`status-badge ${isActive ? 'status-active' : 'status-inactive'}`}>
-                    {isActive ? 'Active' : 'Inactive'}
-                  </span>
-                </td>
-                <td>{user.lastLoginAtUtc ? new Date(user.lastLoginAtUtc).toLocaleString() : '-'}</td>
-                <td>
-                  <div className="table-actions">
-                    <button className="table-action-btn" type="button" onClick={() => navigateTo(`/users/${user.id}/edit`)}>
-                      Edit
-                    </button>
-                    <button className="table-action-btn" type="button" onClick={() => openAssignRoles(user)}>
-                      Assign roles
-                    </button>
-                    <button className="table-action-btn" type="button" onClick={() => void handleToggleStatus(user)}>
-                      {isActive ? 'Lock' : 'Unlock'}
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            )
-          })}
-        </tbody>
-      </table>
+                return (
+                  <TableRow key={user.id}>
+                    <TableCell>{user.fullName}</TableCell>
+                    <TableCell>{user.email}</TableCell>
+                    <TableCell>{user.phone || '-'}</TableCell>
+                    <TableCell>{user.branchName || '-'}</TableCell>
+                    <TableCell>{userRoles.length ? userRoles.map((role) => role.roleName).join(', ') : '-'}</TableCell>
+                    <TableCell>
+                      <Badge appearance="filled" color={isActive ? 'success' : 'danger'}>
+                        {isActive ? 'Active' : 'Inactive'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <TableActions>
+                        <Button size="small" appearance="subtle" onClick={() => navigateTo(`/users/${user.id}/edit`)}>Edit</Button>
+                        <Button size="small" appearance="subtle" onClick={() => openAssignRoles(user)}>Assign roles</Button>
+                        <Button size="small" appearance="subtle" onClick={() => void handleToggleStatus(user)}>{isActive ? 'Lock' : 'Unlock'}</Button>
+                      </TableActions>
+                    </TableCell>
+                  </TableRow>
+                )
+              })}
+            </TableBody>
+          </Table>
+        )}
+      </TableCard>
 
-      {assignUser ? (
-        <div className="modal-backdrop">
-          <div className="modal-card">
-            <h3>Assign Roles: {assignUser.fullName}</h3>
-            <div className="role-list">
-              {roles.map((role) => (
-                <label key={role.id} className="role-item">
-                  <input
-                    type="checkbox"
+      <Dialog open={Boolean(assignUser)} onOpenChange={(_, data) => !data.open && setAssignUserId(null)}>
+        <DialogSurface>
+          <DialogBody>
+            <DialogTitle>Assign Roles: {assignUser?.fullName}</DialogTitle>
+            <DialogContent>
+              <div className={styles.roleList}>
+                {roles.map((role) => (
+                  <Checkbox
+                    key={role.id}
+                    label={role.name}
                     checked={selectedRoleIds.includes(role.id)}
-                    onChange={(event) => {
+                    onChange={(_, data) => {
                       setSelectedRoleIds((prev) =>
-                        event.target.checked ? [...prev, role.id] : prev.filter((id) => id !== role.id),
+                        data.checked ? [...prev, role.id] : prev.filter((id) => id !== role.id),
                       )
                     }}
                   />
-                  {role.name}
-                </label>
-              ))}
-            </div>
-
-            <div className="modal-actions">
-              <button className="ms-button ms-button--secondary" type="button" onClick={() => setAssignUserId(null)}>
-                Cancel
-              </button>
-              <button className="ms-button" type="button" onClick={() => void handleSaveRoles()}>
+                ))}
+              </div>
+            </DialogContent>
+            <DialogActions>
+              <DialogTrigger disableButtonEnhancement>
+                <Button appearance="secondary">Cancel</Button>
+              </DialogTrigger>
+              <Button appearance="primary" onClick={() => void handleSaveRoles()}>
                 Save roles
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
-    </>
+              </Button>
+            </DialogActions>
+          </DialogBody>
+        </DialogSurface>
+      </Dialog>
+    </PageStack>
   )
 }

@@ -1,5 +1,32 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
+  Badge,
+  Button,
+  Dialog,
+  DialogActions,
+  DialogBody,
+  DialogContent,
+  DialogSurface,
+  DialogTitle,
+  DialogTrigger,
+  Field,
+  Input,
+  MessageBar,
+  MessageBarBody,
+  Select,
+  Spinner,
+  Switch,
+  Table,
+  TableBody,
+  TableCell,
+  TableHeader,
+  TableHeaderCell,
+  TableRow,
+} from '@fluentui/react-components'
+import { Add24Regular } from '@fluentui/react-icons'
+import { Pagination } from '../../../components/ui/Pagination'
+import { EmptyState, FilterGroup, FilterItem, PageStack, PageToolbar, TableActions, TableCard } from '../../../components/ui/FluentPage'
+import {
   createRoomApi,
   deleteRoomApi,
   getBranchesApi,
@@ -24,6 +51,7 @@ const initialForm: FormState = {
 }
 
 export function RoomsPage() {
+  const pageSize = 20
   const [rooms, setRooms] = useState<RoomDto[]>([])
   const [branches, setBranches] = useState<BranchDto[]>([])
   const [branchFilter, setBranchFilter] = useState('')
@@ -34,6 +62,8 @@ export function RoomsPage() {
   const [editingRoomId, setEditingRoomId] = useState<number | null>(null)
   const [form, setForm] = useState<FormState>(initialForm)
   const [isSaving, setIsSaving] = useState(false)
+  const [page, setPage] = useState(1)
+  const [roomToDelete, setRoomToDelete] = useState<RoomDto | null>(null)
 
   const selectedBranchId = useMemo(() => (branchFilter ? Number(branchFilter) : undefined), [branchFilter])
 
@@ -59,6 +89,8 @@ export function RoomsPage() {
   useEffect(() => {
     void loadData()
   }, [selectedBranchId])
+
+  const pagedRooms = rooms.slice((page - 1) * pageSize, page * pageSize)
 
   const openCreate = () => {
     setEditingRoomId(null)
@@ -118,12 +150,11 @@ export function RoomsPage() {
     }
   }
 
-  const handleDelete = async (room: RoomDto) => {
-    const confirmed = window.confirm(`Delete room \"${room.name}\"?`)
-    if (!confirmed) return
-
+  const handleDelete = async () => {
+    if (!roomToDelete) return
     try {
-      await deleteRoomApi(room.id)
+      await deleteRoomApi(roomToDelete.id)
+      setRoomToDelete(null)
       await loadData()
     } catch (deleteError) {
       setError(deleteError instanceof Error ? deleteError.message : 'Failed to delete room')
@@ -131,128 +162,151 @@ export function RoomsPage() {
   }
 
   return (
-    <>
-      <div className="users-toolbar">
-        <div className="users-filters">
-          <select className="toolbar-select" value={branchFilter} onChange={(event) => setBranchFilter(event.target.value)}>
-            <option value="">All branches</option>
-            {branches.map((branch) => (
-              <option key={branch.id} value={branch.id}>
-                {branch.name}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <button className="ms-button" type="button" onClick={openCreate}>
+    <PageStack>
+      <PageToolbar>
+        <FilterGroup>
+          <FilterItem>
+            <Field label="Branch">
+              <Select value={branchFilter} onChange={(event) => setBranchFilter(event.currentTarget.value)}>
+                <option value="">All branches</option>
+                {branches.map((branch) => (
+                  <option key={branch.id} value={branch.id}>
+                    {branch.name}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+          </FilterItem>
+        </FilterGroup>
+        <Button appearance="primary" icon={<Add24Regular />} onClick={openCreate}>
           Create room
-        </button>
-      </div>
+        </Button>
+      </PageToolbar>
 
-      {error ? <p className="auth-error">{error}</p> : null}
-      {loading ? <p>Loading rooms...</p> : null}
+      {error ? <MessageBar intent="error"><MessageBarBody>{error}</MessageBarBody></MessageBar> : null}
 
-      <table className="ms-table">
-        <thead>
-          <tr>
-            <th>Room Name</th>
-            <th>Branch</th>
-            <th>Capacity</th>
-            <th>Active</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rooms.map((room) => (
-            <tr key={room.id}>
-              <td>{room.name}</td>
-              <td>{room.branchName}</td>
-              <td>{room.capacity ?? '-'}</td>
-              <td>
-                <span className={`status-badge ${room.isActive ? 'status-active' : 'status-inactive'}`}>
-                  {room.isActive ? 'Active' : 'Inactive'}
-                </span>
-              </td>
-              <td>
-                <div className="table-actions">
-                  <button className="table-action-btn" type="button" onClick={() => void openEdit(room.id)}>
-                    Edit
-                  </button>
-                  <button className="table-action-btn" type="button" onClick={() => void handleDelete(room)}>
-                    Delete
-                  </button>
-                </div>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <TableCard
+        title="Rooms"
+        subtitle={`${rooms.length.toLocaleString()} total rooms`}
+        footer={<Pagination page={page} pageSize={pageSize} totalCount={rooms.length} onPageChange={setPage} />}
+      >
+        {loading ? (
+          <div style={{ padding: 16 }}><Spinner label="Loading rooms..." /></div>
+        ) : pagedRooms.length === 0 ? (
+          <EmptyState title="No rooms found" description="Create a new room or adjust branch filter." />
+        ) : (
+          <Table aria-label="Rooms table">
+            <TableHeader>
+              <TableRow>
+                <TableHeaderCell>Room Name</TableHeaderCell>
+                <TableHeaderCell>Branch</TableHeaderCell>
+                <TableHeaderCell>Capacity</TableHeaderCell>
+                <TableHeaderCell>Active</TableHeaderCell>
+                <TableHeaderCell>Actions</TableHeaderCell>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {pagedRooms.map((room) => (
+                <TableRow key={room.id}>
+                  <TableCell>{room.name}</TableCell>
+                  <TableCell>{room.branchName}</TableCell>
+                  <TableCell>{room.capacity ?? '-'}</TableCell>
+                  <TableCell>
+                    <Badge appearance="filled" color={room.isActive ? 'success' : 'danger'}>
+                      {room.isActive ? 'Active' : 'Inactive'}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <TableActions>
+                      <Button size="small" appearance="subtle" onClick={() => void openEdit(room.id)}>
+                        Edit
+                      </Button>
+                      <Button size="small" appearance="subtle" onClick={() => setRoomToDelete(room)}>
+                        Delete
+                      </Button>
+                    </TableActions>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </TableCard>
 
-      {isModalOpen ? (
-        <div className="modal-backdrop">
-          <div className="modal-card">
-            <h3>{editingRoomId ? 'Edit room' : 'Create room'}</h3>
+      <Dialog open={isModalOpen} onOpenChange={(_, data) => !data.open && closeModal()}>
+        <DialogSurface>
+          <DialogBody>
+            <DialogTitle>{editingRoomId ? 'Edit room' : 'Create room'}</DialogTitle>
+            <DialogContent>
+              <form onSubmit={handleSubmit}>
+                <Field label="Room name" required>
+                  <Input
+                    value={form.name}
+                    onChange={(_, data) => setForm((prev) => ({ ...prev, name: data.value }))}
+                    required
+                  />
+                </Field>
 
-            <form className="branch-form" onSubmit={handleSubmit}>
-              <label className="form-field">
-                <span>Room name</span>
-                <input
-                  className="toolbar-input"
-                  value={form.name}
-                  onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))}
-                  required
-                />
-              </label>
+                <Field label="Branch" required>
+                  <Select
+                    value={form.branchId}
+                    onChange={(event) => setForm((prev) => ({ ...prev, branchId: event.currentTarget.value }))}
+                    required
+                  >
+                    <option value="">Select branch</option>
+                    {branches.map((branch) => (
+                      <option key={branch.id} value={branch.id}>
+                        {branch.name}
+                      </option>
+                    ))}
+                  </Select>
+                </Field>
 
-              <label className="form-field">
-                <span>Branch</span>
-                <select
-                  className="toolbar-select"
-                  value={form.branchId}
-                  onChange={(event) => setForm((prev) => ({ ...prev, branchId: event.target.value }))}
-                  required
-                >
-                  <option value="">Select branch</option>
-                  {branches.map((branch) => (
-                    <option key={branch.id} value={branch.id}>
-                      {branch.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
+                <Field label="Capacity">
+                  <Input
+                    type="number"
+                    min={1}
+                    value={form.capacity}
+                    onChange={(_, data) => setForm((prev) => ({ ...prev, capacity: data.value }))}
+                  />
+                </Field>
 
-              <label className="form-field">
-                <span>Capacity</span>
-                <input
-                  className="toolbar-input"
-                  type="number"
-                  min={1}
-                  value={form.capacity}
-                  onChange={(event) => setForm((prev) => ({ ...prev, capacity: event.target.value }))}
-                />
-              </label>
+                <Field label="Status">
+                  <Switch
+                    checked={form.isActive}
+                    onChange={(_, data) => setForm((prev) => ({ ...prev, isActive: data.checked }))}
+                    label={form.isActive ? 'Active' : 'Inactive'}
+                  />
+                </Field>
 
-              <label className="switch-field">
-                <input
-                  type="checkbox"
-                  checked={form.isActive}
-                  onChange={(event) => setForm((prev) => ({ ...prev, isActive: event.target.checked }))}
-                />
-                <span>Active</span>
-              </label>
+                <DialogActions>
+                  <DialogTrigger disableButtonEnhancement>
+                    <Button appearance="secondary" type="button" onClick={closeModal}>Cancel</Button>
+                  </DialogTrigger>
+                  <Button appearance="primary" type="submit" disabled={isSaving}>
+                    {isSaving ? 'Saving...' : editingRoomId ? 'Save changes' : 'Create room'}
+                  </Button>
+                </DialogActions>
+              </form>
+            </DialogContent>
+          </DialogBody>
+        </DialogSurface>
+      </Dialog>
 
-              <div className="modal-actions">
-                <button className="ms-button ms-button--secondary" type="button" onClick={closeModal}>
-                  Cancel
-                </button>
-                <button className="ms-button" type="submit" disabled={isSaving}>
-                  {isSaving ? 'Saving...' : editingRoomId ? 'Save changes' : 'Create room'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      ) : null}
-    </>
+      <Dialog open={Boolean(roomToDelete)} onOpenChange={(_, data) => !data.open && setRoomToDelete(null)}>
+        <DialogSurface>
+          <DialogBody>
+            <DialogTitle>Delete room</DialogTitle>
+            <DialogContent>
+              Delete "{roomToDelete?.name}"?
+            </DialogContent>
+            <DialogActions>
+              <DialogTrigger disableButtonEnhancement><Button appearance="secondary">Cancel</Button></DialogTrigger>
+              <Button appearance="primary" onClick={() => void handleDelete()}>Delete</Button>
+            </DialogActions>
+          </DialogBody>
+        </DialogSurface>
+      </Dialog>
+    </PageStack>
   )
 }

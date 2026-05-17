@@ -1,16 +1,52 @@
 import { useEffect, useMemo, useState } from 'react'
+import {
+  Button,
+  Card,
+  Field,
+  Input,
+  MessageBar,
+  MessageBarBody,
+  Select,
+  makeStyles,
+  tokens,
+} from '@fluentui/react-components'
 import { navigateTo } from '../../../lib/navigation'
 import { createClassApi, getBranchesLiteApi, getCoursesLiteApi, getRoomsLiteApi, getUsersLiteApi } from '../api'
 import type { BranchLite, CourseLite, RoomLite, UserLite } from '../types'
 
+const useStyles = makeStyles({
+  formCard: {
+    maxWidth: '960px',
+    padding: tokens.spacingHorizontalL,
+  },
+  formGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(2, minmax(220px, 1fr))',
+    gap: tokens.spacingHorizontalM,
+    '@media (max-width: 740px)': {
+      gridTemplateColumns: '1fr',
+    },
+  },
+  fullSpan: {
+    gridColumn: '1 / -1',
+  },
+  actions: {
+    display: 'flex',
+    justifyContent: 'flex-end',
+    gap: tokens.spacingHorizontalS,
+    marginTop: tokens.spacingVerticalL,
+  },
+})
+
 export function ClassCreatePage() {
+  const styles = useStyles()
   const [branches, setBranches] = useState<BranchLite[]>([])
   const [courses, setCourses] = useState<CourseLite[]>([])
   const [rooms, setRooms] = useState<RoomLite[]>([])
   const [teachers, setTeachers] = useState<UserLite[]>([])
   const [error, setError] = useState<string | null>(null)
 
-  const [form, setForm] = useState({ branchId:'', courseId:'', roomId:'', teacherUserId:'', classCode:'', name:'', maxStudents:'', startDate:'', endDate:'' })
+  const [form, setForm] = useState({ branchId: '', courseId: '', roomId: '', teacherUserId: '', classCode: '', name: '', maxStudents: '', startDate: '', endDate: '' })
 
   useEffect(() => {
     void (async () => {
@@ -54,18 +90,55 @@ export function ClassCreatePage() {
   }
 
   return (
-    <form className="user-form" onSubmit={submit}>
-      {error ? <p className="auth-error">{error}</p> : null}
-      <label className="form-field"><span>Branch</span><select className="toolbar-select" value={form.branchId} onChange={(e)=>setForm({...form,branchId:e.target.value,roomId:'',teacherUserId:''})}><option value="">Select</option>{branches.map((b)=><option key={b.id} value={b.id}>{b.name}</option>)}</select></label>
-      <label className="form-field"><span>Course</span><select className="toolbar-select" value={form.courseId} onChange={(e)=>setForm({...form,courseId:e.target.value})}><option value="">Select</option>{courses.map((c)=><option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
-      <label className="form-field"><span>Room</span><select className="toolbar-select" value={form.roomId} onChange={(e)=>setForm({...form,roomId:e.target.value})}><option value="">Select</option>{filteredRooms.map((r)=><option key={r.id} value={r.id}>{r.name}</option>)}</select></label>
-      <label className="form-field"><span>Teacher</span><select className="toolbar-select" value={form.teacherUserId} onChange={(e)=>setForm({...form,teacherUserId:e.target.value})}><option value="">Select</option>{filteredTeachers.map((u)=><option key={u.id} value={u.id}>{u.fullName}</option>)}</select></label>
-      <label className="form-field"><span>Class code</span><input className="toolbar-input" value={form.classCode} onChange={(e)=>setForm({...form,classCode:e.target.value.toUpperCase()})} required /></label>
-      <label className="form-field"><span>Class name</span><input className="toolbar-input" value={form.name} onChange={(e)=>setForm({...form,name:e.target.value})} required /></label>
-      <label className="form-field"><span>Max students</span><input className="toolbar-input" type="number" min={1} value={form.maxStudents} onChange={(e)=>setForm({...form,maxStudents:e.target.value})} /></label>
-      <label className="form-field"><span>Start date</span><input className="toolbar-input" type="date" value={form.startDate} onChange={(e)=>setForm({...form,startDate:e.target.value})} /></label>
-      <label className="form-field"><span>End date</span><input className="toolbar-input" type="date" value={form.endDate} onChange={(e)=>setForm({...form,endDate:e.target.value})} /></label>
-      <div className="form-actions"><button className="ms-button ms-button--secondary" type="button" onClick={()=>navigateTo('/classes')}>Cancel</button><button className="ms-button" type="submit">Create class</button></div>
-    </form>
+    <Card className={styles.formCard}>
+      <form onSubmit={submit}>
+        {error ? <MessageBar intent="error"><MessageBarBody>{error}</MessageBarBody></MessageBar> : null}
+        <div className={styles.formGrid}>
+          <Field label="Branch" required>
+            <Select value={form.branchId} onChange={(e) => setForm({ ...form, branchId: e.currentTarget.value, roomId: '', teacherUserId: '' })}>
+              <option value="">Select</option>
+              {branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+            </Select>
+          </Field>
+          <Field label="Course" required>
+            <Select value={form.courseId} onChange={(e) => setForm({ ...form, courseId: e.currentTarget.value })}>
+              <option value="">Select</option>
+              {courses.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </Select>
+          </Field>
+          <Field label="Room">
+            <Select value={form.roomId} onChange={(e) => setForm({ ...form, roomId: e.currentTarget.value })}>
+              <option value="">Select</option>
+              {filteredRooms.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
+            </Select>
+          </Field>
+          <Field label="Teacher">
+            <Select value={form.teacherUserId} onChange={(e) => setForm({ ...form, teacherUserId: e.currentTarget.value })}>
+              <option value="">Select</option>
+              {filteredTeachers.map((u) => <option key={u.id} value={u.id}>{u.fullName}</option>)}
+            </Select>
+          </Field>
+          <Field label="Class code" required>
+            <Input value={form.classCode} onChange={(_, d) => setForm({ ...form, classCode: d.value.toUpperCase() })} />
+          </Field>
+          <Field label="Class name" required>
+            <Input value={form.name} onChange={(_, d) => setForm({ ...form, name: d.value })} />
+          </Field>
+          <Field label="Max students">
+            <Input type="number" min={1} value={form.maxStudents} onChange={(_, d) => setForm({ ...form, maxStudents: d.value })} />
+          </Field>
+          <Field label="Start date">
+            <Input type="date" value={form.startDate} onChange={(_, d) => setForm({ ...form, startDate: d.value })} />
+          </Field>
+          <Field label="End date" className={styles.fullSpan}>
+            <Input type="date" value={form.endDate} onChange={(_, d) => setForm({ ...form, endDate: d.value })} />
+          </Field>
+        </div>
+        <div className={styles.actions}>
+          <Button appearance="secondary" type="button" onClick={() => navigateTo('/classes')}>Cancel</Button>
+          <Button appearance="primary" type="submit">Create class</Button>
+        </div>
+      </form>
+    </Card>
   )
 }

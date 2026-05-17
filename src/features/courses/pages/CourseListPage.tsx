@@ -1,38 +1,98 @@
 import { useEffect, useState } from 'react'
+import {
+  Badge,
+  Button,
+  Dialog,
+  DialogActions,
+  DialogBody,
+  DialogContent,
+  DialogSurface,
+  DialogTitle,
+  DialogTrigger,
+  Field,
+  MessageBar,
+  MessageBarBody,
+  SearchBox,
+  Table,
+  TableBody,
+  TableCell,
+  TableHeader,
+  TableHeaderCell,
+  TableRow,
+} from '@fluentui/react-components'
+import { Add24Regular } from '@fluentui/react-icons'
 import { useAuthRoles } from '../../auth/useAuthRoles'
 import { navigateTo } from '../../../lib/navigation'
+import { Pagination } from '../../../components/ui/Pagination'
+import { EmptyState, FilterGroup, FilterItem, PageStack, PageToolbar, TableActions, TableCard } from '../../../components/ui/FluentPage'
 import { deleteCourseApi, getCoursesApi, updateCourseApi } from '../api'
 import type { CourseDto } from '../types'
 
 export function CourseListPage() {
+  const pageSize = 20
   const roles = useAuthRoles()
   const canEdit = roles.includes('Admin')
   const [items, setItems] = useState<CourseDto[]>([])
   const [keyword, setKeyword] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [page, setPage] = useState(1)
+  const [totalCount, setTotalCount] = useState(0)
+  const [courseToDelete, setCourseToDelete] = useState<CourseDto | null>(null)
 
-  const load = async () => {
+  const load = async (nextPage = page) => {
     try {
-      const data = await getCoursesApi({ keyword: keyword || undefined })
+      const data = await getCoursesApi({ keyword: keyword || undefined, page: nextPage, pageSize })
       setItems(data.items)
+      setPage(data.pageNumber)
+      setTotalCount(data.totalCount)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load courses')
     }
   }
 
-  useEffect(() => { void load() }, [])
+  useEffect(() => { void load(1) }, [])
 
   return (
-    <>
-      <div className="users-toolbar">
-        <div className="users-filters">
-          <input className="toolbar-input" placeholder="Search course" value={keyword} onChange={(e)=>setKeyword(e.target.value)} />
-          <button className="ms-button ms-button--secondary" onClick={()=>void load()}>Search</button>
-        </div>
-        {canEdit ? <button className="ms-button" onClick={()=>navigateTo('/courses/create')}>Create course</button> : null}
-      </div>
-      {error ? <p className="auth-error">{error}</p> : null}
-      <table className="ms-table"><thead><tr><th>Code</th><th>Name</th><th>Level</th><th>Total Sessions</th><th>Tuition Fee</th><th>Active</th><th>Actions</th></tr></thead><tbody>{items.map((c)=><tr key={c.id}><td>{c.code}</td><td>{c.name}</td><td>{c.level??'-'}</td><td>{c.totalSessions??'-'}</td><td>{c.tuitionFee.toLocaleString()}</td><td>{c.isActive?'Yes':'No'}</td><td><div className="table-actions">{canEdit ? <><button className="table-action-btn" onClick={()=>navigateTo(`/courses/${c.id}/edit`)}>Edit</button><button className="table-action-btn" onClick={async()=>{await updateCourseApi(c.id,{name:c.name,code:c.code,level:c.level,description:c.description,totalSessions:c.totalSessions,tuitionFee:c.tuitionFee,isActive:!c.isActive});await load()}}>{c.isActive?'Deactivate':'Activate'}</button><button className="table-action-btn" onClick={async()=>{if(window.confirm(`Delete ${c.name}?`)){await deleteCourseApi(c.id);await load()}}}>Delete</button></> : '-'}</div></td></tr>)}</tbody></table>
-    </>
+    <PageStack>
+      <PageToolbar>
+        <FilterGroup>
+          <FilterItem>
+            <Field label="Search">
+              <SearchBox placeholder="Search course" value={keyword} onChange={(_, d) => setKeyword(d.value)} />
+            </Field>
+          </FilterItem>
+          <Button appearance="secondary" onClick={() => void load(1)}>Search</Button>
+        </FilterGroup>
+        {canEdit ? <Button appearance="primary" icon={<Add24Regular />} onClick={() => navigateTo('/courses/create')}>Create course</Button> : null}
+      </PageToolbar>
+      {error ? <MessageBar intent="error"><MessageBarBody>{error}</MessageBarBody></MessageBar> : null}
+      <TableCard title="Courses" subtitle={`${totalCount.toLocaleString()} total courses`} footer={<Pagination page={page} pageSize={pageSize} totalCount={totalCount} onPageChange={(p) => void load(p)} />}>
+        {items.length === 0 ? (
+          <EmptyState title="No courses found" description="Adjust search filter or create a new course." />
+        ) : (
+          <Table aria-label="Courses table">
+            <TableHeader><TableRow><TableHeaderCell>Code</TableHeaderCell><TableHeaderCell>Name</TableHeaderCell><TableHeaderCell>Level</TableHeaderCell><TableHeaderCell>Total Sessions</TableHeaderCell><TableHeaderCell>Tuition Fee</TableHeaderCell><TableHeaderCell>Active</TableHeaderCell><TableHeaderCell>Actions</TableHeaderCell></TableRow></TableHeader>
+            <TableBody>
+              {items.map((c) => (
+                <TableRow key={c.id}>
+                  <TableCell>{c.code}</TableCell><TableCell>{c.name}</TableCell><TableCell>{c.level ?? '-'}</TableCell><TableCell>{c.totalSessions ?? '-'}</TableCell><TableCell>{c.tuitionFee.toLocaleString()}</TableCell>
+                  <TableCell><Badge appearance="filled" color={c.isActive ? 'success' : 'danger'}>{c.isActive ? 'Active' : 'Inactive'}</Badge></TableCell>
+                  <TableCell>
+                    <TableActions>
+                      {canEdit ? <Button size="small" appearance="subtle" onClick={() => navigateTo(`/courses/${c.id}/edit`)}>Edit</Button> : null}
+                      {canEdit ? <Button size="small" appearance="subtle" onClick={async () => { await updateCourseApi(c.id, { name: c.name, code: c.code, level: c.level, description: c.description, totalSessions: c.totalSessions, tuitionFee: c.tuitionFee, isActive: !c.isActive }); await load() }}>{c.isActive ? 'Deactivate' : 'Activate'}</Button> : null}
+                      {canEdit ? <Button size="small" appearance="subtle" onClick={() => setCourseToDelete(c)}>Delete</Button> : null}
+                    </TableActions>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </TableCard>
+      <Dialog open={Boolean(courseToDelete)} onOpenChange={(_, d) => !d.open && setCourseToDelete(null)}>
+        <DialogSurface><DialogBody><DialogTitle>Delete course</DialogTitle><DialogContent>Delete "{courseToDelete?.name}"?</DialogContent><DialogActions><DialogTrigger disableButtonEnhancement><Button appearance="secondary">Cancel</Button></DialogTrigger><Button appearance="primary" onClick={async () => { if (!courseToDelete) return; await deleteCourseApi(courseToDelete.id); setCourseToDelete(null); await load() }}>Delete</Button></DialogActions></DialogBody></DialogSurface>
+      </Dialog>
+    </PageStack>
   )
 }

@@ -1,5 +1,31 @@
 import { useEffect, useState } from 'react'
 import {
+  Badge,
+  Button,
+  Dialog,
+  DialogActions,
+  DialogBody,
+  DialogContent,
+  DialogSurface,
+  DialogTitle,
+  DialogTrigger,
+  Field,
+  Input,
+  MessageBar,
+  MessageBarBody,
+  Spinner,
+  Switch,
+  Table,
+  TableBody,
+  TableCell,
+  TableHeader,
+  TableHeaderCell,
+  TableRow,
+} from '@fluentui/react-components'
+import { Add24Regular } from '@fluentui/react-icons'
+import { Pagination } from '../../../components/ui/Pagination'
+import { EmptyState, PageStack, PageToolbar, TableActions, TableCard } from '../../../components/ui/FluentPage'
+import {
   createBranchApi,
   deleteBranchApi,
   getBranchApi,
@@ -25,6 +51,7 @@ const initialFormState: FormState = {
 }
 
 export function BranchesPage() {
+  const pageSize = 20
   const [branches, setBranches] = useState<BranchDto[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -33,6 +60,8 @@ export function BranchesPage() {
   const [editingBranchId, setEditingBranchId] = useState<number | null>(null)
   const [form, setForm] = useState<FormState>(initialFormState)
   const [isSaving, setIsSaving] = useState(false)
+  const [page, setPage] = useState(1)
+  const [branchToDelete, setBranchToDelete] = useState<BranchDto | null>(null)
 
   const loadBranches = async () => {
     setLoading(true)
@@ -51,6 +80,8 @@ export function BranchesPage() {
   useEffect(() => {
     void loadBranches()
   }, [])
+
+  const pagedBranches = branches.slice((page - 1) * pageSize, page * pageSize)
 
   const mapFormToPayload = (state: FormState): BranchPayload => ({
     name: state.name,
@@ -128,12 +159,11 @@ export function BranchesPage() {
     }
   }
 
-  const handleDelete = async (branch: BranchDto) => {
-    const confirmed = window.confirm(`Delete branch "${branch.name}"?`)
-    if (!confirmed) return
-
+  const handleDelete = async () => {
+    if (!branchToDelete) return
     try {
-      await deleteBranchApi(branch.id)
+      await deleteBranchApi(branchToDelete.id)
+      setBranchToDelete(null)
       await loadBranches()
     } catch (deleteError) {
       setError(deleteError instanceof Error ? deleteError.message : 'Failed to delete branch')
@@ -141,124 +171,142 @@ export function BranchesPage() {
   }
 
   return (
-    <>
-      <div className="users-toolbar">
+    <PageStack>
+      <PageToolbar>
         <div />
-        <button className="ms-button" type="button" onClick={openCreateModal}>
+        <Button appearance="primary" icon={<Add24Regular />} type="button" onClick={openCreateModal}>
           Create branch
-        </button>
-      </div>
+        </Button>
+      </PageToolbar>
 
-      {error ? <p className="auth-error">{error}</p> : null}
-      {loading ? <p>Loading branches...</p> : null}
+      {error ? <MessageBar intent="error"><MessageBarBody>{error}</MessageBarBody></MessageBar> : null}
 
-      <table className="ms-table">
-        <thead>
-          <tr>
-            <th>Name</th>
-            <th>Address</th>
-            <th>Phone</th>
-            <th>Email</th>
-            <th>Active</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {branches.map((branch) => (
-            <tr key={branch.id}>
-              <td>{branch.name}</td>
-              <td>{branch.address || '-'}</td>
-              <td>{branch.phone || '-'}</td>
-              <td>{branch.email || '-'}</td>
-              <td>
-                <button
-                  className={`status-switch ${branch.isActive ? 'active' : 'inactive'}`}
-                  type="button"
-                  onClick={() => void handleToggleActive(branch)}
-                >
-                  {branch.isActive ? 'Active' : 'Inactive'}
-                </button>
-              </td>
-              <td>
-                <div className="table-actions">
-                  <button className="table-action-btn" type="button" onClick={() => void openEditModal(branch.id)}>
-                    Edit
-                  </button>
-                  <button className="table-action-btn" type="button" onClick={() => void handleDelete(branch)}>
-                    Delete
-                  </button>
-                </div>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <TableCard
+        title="Branches"
+        subtitle={`${branches.length.toLocaleString()} total branches`}
+        footer={<Pagination page={page} pageSize={pageSize} totalCount={branches.length} onPageChange={setPage} />}
+      >
+        {loading ? (
+          <div style={{ padding: 16 }}><Spinner label="Loading branches..." /></div>
+        ) : pagedBranches.length === 0 ? (
+          <EmptyState title="No branches found" description="Create a branch to get started." />
+        ) : (
+          <Table aria-label="Branches table">
+            <TableHeader>
+              <TableRow>
+                <TableHeaderCell>Name</TableHeaderCell>
+                <TableHeaderCell>Address</TableHeaderCell>
+                <TableHeaderCell>Phone</TableHeaderCell>
+                <TableHeaderCell>Email</TableHeaderCell>
+                <TableHeaderCell>Active</TableHeaderCell>
+                <TableHeaderCell>Actions</TableHeaderCell>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {pagedBranches.map((branch) => (
+                <TableRow key={branch.id}>
+                  <TableCell>{branch.name}</TableCell>
+                  <TableCell>{branch.address || '-'}</TableCell>
+                  <TableCell>{branch.phone || '-'}</TableCell>
+                  <TableCell>{branch.email || '-'}</TableCell>
+                  <TableCell>
+                    <Button size="small" appearance="subtle" onClick={() => void handleToggleActive(branch)}>
+                      <Badge appearance="filled" color={branch.isActive ? 'success' : 'danger'}>
+                        {branch.isActive ? 'Active' : 'Inactive'}
+                      </Badge>
+                    </Button>
+                  </TableCell>
+                  <TableCell>
+                    <TableActions>
+                      <Button size="small" appearance="subtle" type="button" onClick={() => void openEditModal(branch.id)}>
+                        Edit
+                      </Button>
+                      <Button size="small" appearance="subtle" type="button" onClick={() => setBranchToDelete(branch)}>
+                        Delete
+                      </Button>
+                    </TableActions>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </TableCard>
 
-      {isCreateOpen ? (
-        <div className="modal-backdrop">
-          <div className="modal-card">
-            <h3>{editingBranchId ? 'Edit branch' : 'Create branch'}</h3>
+      <Dialog open={isCreateOpen} onOpenChange={(_, data) => !data.open && closeModal()}>
+        <DialogSurface>
+          <DialogBody>
+            <DialogTitle>{editingBranchId ? 'Edit branch' : 'Create branch'}</DialogTitle>
+            <DialogContent>
+              <form onSubmit={handleSubmit}>
+                <Field label="Name" required>
+                  <Input
+                    value={form.name}
+                    onChange={(_, data) => setForm((prev) => ({ ...prev, name: data.value }))}
+                    required
+                  />
+                </Field>
 
-            <form className="branch-form" onSubmit={handleSubmit}>
-              <label className="form-field">
-                <span>Name</span>
-                <input
-                  className="toolbar-input"
-                  value={form.name}
-                  onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))}
-                  required
-                />
-              </label>
+                <Field label="Address">
+                  <Input
+                    value={form.address}
+                    onChange={(_, data) => setForm((prev) => ({ ...prev, address: data.value }))}
+                  />
+                </Field>
 
-              <label className="form-field">
-                <span>Address</span>
-                <input
-                  className="toolbar-input"
-                  value={form.address}
-                  onChange={(event) => setForm((prev) => ({ ...prev, address: event.target.value }))}
-                />
-              </label>
+                <Field label="Phone">
+                  <Input
+                    value={form.phone}
+                    onChange={(_, data) => setForm((prev) => ({ ...prev, phone: data.value }))}
+                  />
+                </Field>
 
-              <label className="form-field">
-                <span>Phone</span>
-                <input
-                  className="toolbar-input"
-                  value={form.phone}
-                  onChange={(event) => setForm((prev) => ({ ...prev, phone: event.target.value }))}
-                />
-              </label>
+                <Field label="Email">
+                  <Input
+                    type="email"
+                    value={form.email}
+                    onChange={(_, data) => setForm((prev) => ({ ...prev, email: data.value }))}
+                  />
+                </Field>
 
-              <label className="form-field">
-                <span>Email</span>
-                <input
-                  className="toolbar-input"
-                  type="email"
-                  value={form.email}
-                  onChange={(event) => setForm((prev) => ({ ...prev, email: event.target.value }))}
-                />
-              </label>
+                <Field label="Status">
+                  <Switch
+                    checked={form.isActive}
+                    onChange={(_, data) => setForm((prev) => ({ ...prev, isActive: data.checked }))}
+                    label={form.isActive ? 'Active' : 'Inactive'}
+                  />
+                </Field>
 
-              <label className="switch-field">
-                <input
-                  type="checkbox"
-                  checked={form.isActive}
-                  onChange={(event) => setForm((prev) => ({ ...prev, isActive: event.target.checked }))}
-                />
-                <span>Active</span>
-              </label>
+                <DialogActions>
+                  <DialogTrigger disableButtonEnhancement>
+                    <Button appearance="secondary" type="button" onClick={closeModal}>
+                      Cancel
+                    </Button>
+                  </DialogTrigger>
+                  <Button appearance="primary" type="submit" disabled={isSaving}>
+                    {isSaving ? 'Saving...' : editingBranchId ? 'Save changes' : 'Create branch'}
+                  </Button>
+                </DialogActions>
+              </form>
+            </DialogContent>
+          </DialogBody>
+        </DialogSurface>
+      </Dialog>
 
-              <div className="modal-actions">
-                <button className="ms-button ms-button--secondary" type="button" onClick={closeModal}>
-                  Cancel
-                </button>
-                <button className="ms-button" type="submit" disabled={isSaving}>
-                  {isSaving ? 'Saving...' : editingBranchId ? 'Save changes' : 'Create branch'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      ) : null}
-    </>
+      <Dialog open={Boolean(branchToDelete)} onOpenChange={(_, data) => !data.open && setBranchToDelete(null)}>
+        <DialogSurface>
+          <DialogBody>
+            <DialogTitle>Delete branch</DialogTitle>
+            <DialogContent>
+              Delete "{branchToDelete?.name}"?
+            </DialogContent>
+            <DialogActions>
+              <DialogTrigger disableButtonEnhancement><Button appearance="secondary">Cancel</Button></DialogTrigger>
+              <Button appearance="primary" onClick={() => void handleDelete()}>Delete</Button>
+            </DialogActions>
+          </DialogBody>
+        </DialogSurface>
+      </Dialog>
+    </PageStack>
   )
 }

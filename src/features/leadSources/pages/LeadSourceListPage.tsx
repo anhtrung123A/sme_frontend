@@ -1,13 +1,41 @@
 import { useEffect, useState } from 'react'
+import {
+  Badge,
+  Button,
+  Dialog,
+  DialogActions,
+  DialogBody,
+  DialogContent,
+  DialogSurface,
+  DialogTitle,
+  DialogTrigger,
+  Field,
+  Input,
+  MessageBar,
+  MessageBarBody,
+  Table,
+  TableBody,
+  TableCell,
+  TableHeader,
+  TableHeaderCell,
+  TableRow,
+} from '@fluentui/react-components'
+import { Add24Regular } from '@fluentui/react-icons'
 import { apiRequest } from '../../../lib/apiClient'
+import { Pagination } from '../../../components/ui/Pagination'
+import { PageStack, PageToolbar, TableActions, TableCard } from '../../../components/ui/FluentPage'
 import type { ApiResponse } from '../../leads/types'
 
 type LeadSourceDto = { id: number; name: string; description: string | null; isActive: boolean }
 
 export function LeadSourceListPage() {
+  const pageSize = 20
   const [items, setItems] = useState<LeadSourceDto[]>([])
   const [error, setError] = useState<string | null>(null)
   const [name, setName] = useState('')
+  const [page, setPage] = useState(1)
+  const [editing, setEditing] = useState<LeadSourceDto | null>(null)
+  const [deleting, setDeleting] = useState<LeadSourceDto | null>(null)
 
   const load = async () => {
     try {
@@ -19,6 +47,7 @@ export function LeadSourceListPage() {
   }
 
   useEffect(() => { void load() }, [])
+  const pagedItems = items.slice((page - 1) * pageSize, page * pageSize)
 
   const create = async () => {
     await apiRequest('/lead-sources', { method: 'POST', body: { name, description: null, isActive: true } })
@@ -26,26 +55,26 @@ export function LeadSourceListPage() {
     await load()
   }
 
-  const edit = async (item: LeadSourceDto) => {
-    const newName = window.prompt('Source name', item.name)
-    if (!newName) return
-    await apiRequest(`/lead-sources/${item.id}`, { method: 'PUT', body: { name: newName, description: item.description, isActive: item.isActive } })
-    await load()
-  }
-
-  const remove = async (item: LeadSourceDto) => {
-    if (!window.confirm(`Delete source "${item.name}"?`)) return
-    await apiRequest(`/lead-sources/${item.id}`, { method: 'DELETE' })
-    await load()
-  }
-
   return (
-    <>
-      <div className="users-toolbar">
-        <div className="users-filters"><input className="toolbar-input" placeholder="Source name" value={name} onChange={(e)=>setName(e.target.value)} /><button className="ms-button" onClick={()=>void create()}>Create source</button></div>
-      </div>
-      {error ? <p className="auth-error">{error}</p> : null}
-      <table className="ms-table"><thead><tr><th>Name</th><th>Description</th><th>Active</th><th>Actions</th></tr></thead><tbody>{items.map((i)=><tr key={i.id}><td>{i.name}</td><td>{i.description ?? '-'}</td><td>{i.isActive ? 'Active' : 'Inactive'}</td><td><div className="table-actions"><button className="table-action-btn" onClick={()=>void edit(i)}>Edit</button><button className="table-action-btn" onClick={()=>void remove(i)}>Delete</button></div></td></tr>)}</tbody></table>
-    </>
+    <PageStack>
+      <PageToolbar>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <Field label="Source name"><Input value={name} onChange={(_, d) => setName(d.value)} /></Field>
+          <Button appearance="primary" icon={<Add24Regular />} onClick={() => void create()}>Create source</Button>
+        </div>
+      </PageToolbar>
+      {error ? <MessageBar intent="error"><MessageBarBody>{error}</MessageBarBody></MessageBar> : null}
+      <TableCard title="Lead Sources" subtitle={`${items.length} sources`} footer={<Pagination page={page} pageSize={pageSize} totalCount={items.length} onPageChange={setPage} />}>
+        <Table aria-label="Lead sources table"><TableHeader><TableRow><TableHeaderCell>Name</TableHeaderCell><TableHeaderCell>Description</TableHeaderCell><TableHeaderCell>Active</TableHeaderCell><TableHeaderCell>Actions</TableHeaderCell></TableRow></TableHeader><TableBody>{pagedItems.map((i) => <TableRow key={i.id}><TableCell>{i.name}</TableCell><TableCell>{i.description ?? '-'}</TableCell><TableCell><Badge appearance="filled" color={i.isActive ? 'success' : 'danger'}>{i.isActive ? 'Active' : 'Inactive'}</Badge></TableCell><TableCell><TableActions><Button size="small" appearance="subtle" onClick={() => setEditing(i)}>Edit</Button><Button size="small" appearance="subtle" onClick={() => setDeleting(i)}>Delete</Button></TableActions></TableCell></TableRow>)}</TableBody></Table>
+      </TableCard>
+
+      <Dialog open={Boolean(editing)} onOpenChange={(_, d) => !d.open && setEditing(null)}>
+        <DialogSurface><DialogBody><DialogTitle>Edit source</DialogTitle><DialogContent><Field label="Source name"><Input value={editing?.name ?? ''} onChange={(_, data) => setEditing((prev) => prev ? { ...prev, name: data.value } : prev)} /></Field></DialogContent><DialogActions><DialogTrigger disableButtonEnhancement><Button appearance="secondary">Cancel</Button></DialogTrigger><Button appearance="primary" onClick={async () => { if (!editing) return; await apiRequest(`/lead-sources/${editing.id}`, { method: 'PUT', body: { name: editing.name, description: editing.description, isActive: editing.isActive } }); setEditing(null); await load() }}>Save</Button></DialogActions></DialogBody></DialogSurface>
+      </Dialog>
+
+      <Dialog open={Boolean(deleting)} onOpenChange={(_, d) => !d.open && setDeleting(null)}>
+        <DialogSurface><DialogBody><DialogTitle>Delete source</DialogTitle><DialogContent>Delete "{deleting?.name}"?</DialogContent><DialogActions><DialogTrigger disableButtonEnhancement><Button appearance="secondary">Cancel</Button></DialogTrigger><Button appearance="primary" onClick={async () => { if (!deleting) return; await apiRequest(`/lead-sources/${deleting.id}`, { method: 'DELETE' }); setDeleting(null); await load() }}>Delete</Button></DialogActions></DialogBody></DialogSurface>
+      </Dialog>
+    </PageStack>
   )
 }

@@ -1,8 +1,31 @@
 import { useEffect, useState } from 'react'
+import {
+  Button,
+  Card,
+  Field,
+  Input,
+  MessageBar,
+  MessageBarBody,
+  Select,
+  makeStyles,
+  tokens,
+} from '@fluentui/react-components'
 import { navigateTo } from '../../../lib/navigation'
 import { getClassesLiteApi, getCoursesLiteApi, getEnrollmentApi, getStudentsLiteApi, getUsersLiteApi, updateEnrollmentApi } from '../api'
 
+const useStyles = makeStyles({
+  formCard: { maxWidth: '980px', padding: tokens.spacingHorizontalL },
+  grid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(2, minmax(220px, 1fr))',
+    gap: tokens.spacingHorizontalM,
+    '@media (max-width: 760px)': { gridTemplateColumns: '1fr' },
+  },
+  actions: { marginTop: tokens.spacingVerticalL, display: 'flex', justifyContent: 'flex-end', gap: tokens.spacingHorizontalS },
+})
+
 export function EnrollmentEditPage({ enrollmentId }: { enrollmentId: string }) {
+  const styles = useStyles()
   const id = Number(enrollmentId)
   const [studentId, setStudentId] = useState('')
   const [courseId, setCourseId] = useState('')
@@ -61,17 +84,21 @@ export function EnrollmentEditPage({ enrollmentId }: { enrollmentId: string }) {
   }
 
   return (
-    <form className="user-form" onSubmit={submit}>
-      <label className="form-field"><span>Student</span><select className="toolbar-select" value={studentId} onChange={(e)=>setStudentId(e.target.value)}>{students.map((x)=><option key={x.id} value={x.id}>{x.studentCode} - {x.fullName}</option>)}</select></label>
-      <label className="form-field"><span>Course</span><select className="toolbar-select" value={courseId} onChange={(e)=>setCourseId(e.target.value)}>{courses.map((x)=><option key={x.id} value={x.id}>{x.name}</option>)}</select></label>
-      <label className="form-field"><span>Class</span><select className="toolbar-select" value={classId} onChange={(e)=>setClassId(e.target.value)}><option value="">Unassigned</option>{classes.map((x)=><option key={x.id} value={x.id}>{x.classCode} - {x.name}</option>)}</select></label>
-      <label className="form-field"><span>Sales owner</span><select className="toolbar-select" value={salesUserId} onChange={(e)=>setSalesUserId(e.target.value)}><option value="">Unassigned</option>{users.map((x)=><option key={x.id} value={x.id}>{x.fullName}</option>)}</select></label>
-      <label className="form-field"><span>Start date</span><input className="toolbar-input" type="date" value={startDate} onChange={(e)=>setStartDate(e.target.value)} /></label>
-      <label className="form-field"><span>End date</span><input className="toolbar-input" type="date" value={endDate} onChange={(e)=>setEndDate(e.target.value)} /></label>
-      <label className="form-field"><span>Discount amount</span><input className="toolbar-input" type="number" min={0} value={discountAmount} onChange={(e)=>setDiscountAmount(e.target.value)} /></label>
-      <label className="form-field"><span>Note</span><input className="toolbar-input" value={note} onChange={(e)=>setNote(e.target.value)} /></label>
-      {error ? <p className="auth-error" style={{ gridColumn: '1 / -1' }}>{error}</p> : null}
-      <div className="form-actions"><button className="ms-button ms-button--secondary" type="button" onClick={()=>navigateTo(`/enrollments/${id}`)}>Cancel</button><button className="ms-button" type="submit">Save changes</button></div>
-    </form>
+    <Card className={styles.formCard}>
+      <form onSubmit={submit}>
+        <div className={styles.grid}>
+          <Field label="Student"><Select value={studentId} onChange={(e) => setStudentId(e.currentTarget.value)}>{students.map((x) => <option key={x.id} value={x.id}>{x.studentCode} - {x.fullName}</option>)}</Select></Field>
+          <Field label="Course"><Select value={courseId} onChange={(e) => setCourseId(e.currentTarget.value)}>{courses.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}</Select></Field>
+          <Field label="Class"><Select value={classId} onChange={(e) => setClassId(e.currentTarget.value)}><option value="">Unassigned</option>{classes.map((x) => <option key={x.id} value={x.id}>{x.classCode} - {x.name}</option>)}</Select></Field>
+          <Field label="Sales owner"><Select value={salesUserId} onChange={(e) => setSalesUserId(e.currentTarget.value)}><option value="">Unassigned</option>{users.map((x) => <option key={x.id} value={x.id}>{x.fullName}</option>)}</Select></Field>
+          <Field label="Start date"><Input type="date" value={startDate} onChange={(_, d) => setStartDate(d.value)} /></Field>
+          <Field label="End date"><Input type="date" value={endDate} onChange={(_, d) => setEndDate(d.value)} /></Field>
+          <Field label="Discount amount"><Input type="number" min={0} value={discountAmount} onChange={(_, d) => setDiscountAmount(d.value)} /></Field>
+          <Field label="Note"><Input value={note} onChange={(_, d) => setNote(d.value)} /></Field>
+        </div>
+        {error ? <MessageBar intent="error"><MessageBarBody>{error}</MessageBarBody></MessageBar> : null}
+        <div className={styles.actions}><Button appearance="secondary" type="button" onClick={() => navigateTo(`/enrollments/${id}`)}>Cancel</Button><Button appearance="primary" type="submit">Save changes</Button></div>
+      </form>
+    </Card>
   )
 }
