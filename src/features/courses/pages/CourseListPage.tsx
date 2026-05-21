@@ -10,6 +10,11 @@ import {
   DialogTitle,
   DialogTrigger,
   Field,
+  Menu,
+  MenuItem,
+  MenuList,
+  MenuPopover,
+  MenuTrigger,
   MessageBar,
   MessageBarBody,
   SearchBox,
@@ -20,7 +25,7 @@ import {
   TableHeaderCell,
   TableRow,
 } from '@fluentui/react-components'
-import { Add24Regular } from '@fluentui/react-icons'
+import { Add24Regular, MoreHorizontalRegular } from '@fluentui/react-icons'
 import { useAuthRoles } from '../../auth/useAuthRoles'
 import { navigateTo } from '../../../lib/navigation'
 import { Pagination } from '../../../components/ui/Pagination'
@@ -79,9 +84,18 @@ export function CourseListPage() {
                   <TableCell><Badge appearance="filled" color={c.isActive ? 'success' : 'danger'}>{c.isActive ? 'Active' : 'Inactive'}</Badge></TableCell>
                   <TableCell>
                     <TableActions>
-                      {canEdit ? <Button size="small" appearance="subtle" onClick={() => navigateTo(`/courses/${c.id}/edit`)}>Edit</Button> : null}
-                      {canEdit ? <Button size="small" appearance="subtle" onClick={async () => { await updateCourseApi(c.id, { name: c.name, code: c.code, level: c.level, description: c.description, totalSessions: c.totalSessions, tuitionFee: c.tuitionFee, isActive: !c.isActive }); await load() }}>{c.isActive ? 'Deactivate' : 'Activate'}</Button> : null}
-                      {canEdit ? <Button size="small" appearance="subtle" onClick={() => setCourseToDelete(c)}>Delete</Button> : null}
+                      <Menu positioning="below-end">
+                        <MenuTrigger disableButtonEnhancement>
+                          <Button size="small" appearance="subtle" icon={<MoreHorizontalRegular />} aria-label="More actions" />
+                        </MenuTrigger>
+                        <MenuPopover>
+                          <MenuList>
+                            {canEdit ? <MenuItem onClick={() => navigateTo(`/courses/${c.id}/edit`)}>Edit</MenuItem> : null}
+                            {canEdit ? <MenuItem onClick={async () => { await updateCourseApi(c.id, { name: c.name, code: c.code, level: c.level, description: c.description, totalSessions: c.totalSessions, tuitionFee: c.tuitionFee, isActive: !c.isActive }); await load() }}>{c.isActive ? 'Deactivate' : 'Activate'}</MenuItem> : null}
+                            {canEdit ? <MenuItem onClick={() => setCourseToDelete(c)}>Delete</MenuItem> : null}
+                          </MenuList>
+                        </MenuPopover>
+                      </Menu>
                     </TableActions>
                   </TableCell>
                 </TableRow>

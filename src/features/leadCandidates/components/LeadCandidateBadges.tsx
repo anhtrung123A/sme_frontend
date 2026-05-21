@@ -1,8 +1,8 @@
-import { Badge, ProgressBar, Text, makeStyles, tokens } from '@fluentui/react-components'
+import { Badge, Text, makeStyles } from '@fluentui/react-components'
 import { formatStatusLabel } from '../../../lib/formatStatus'
 
 const useStyles = makeStyles({
-  scoreWrap: { minWidth: '120px', display: 'grid', gap: tokens.spacingVerticalXXS },
+  scoreText: { fontWeight: 600 },
 })
 
 function normalize(raw: string) {
@@ -43,11 +43,6 @@ export function CandidateStatusBadge({ value }: { value: string }) {
 export function ScoreView({ score }: { score: number }) {
   const styles = useStyles()
   const clamped = Math.max(0, Math.min(100, score))
-  const color = clamped >= 80 ? 'success' : clamped >= 50 ? 'warning' : 'error'
-  return (
-    <div className={styles.scoreWrap}>
-      <Text size={200}>{clamped} / 100</Text>
-      <ProgressBar max={100} value={clamped} color={color} />
-    </div>
-  )
+  const tone = clamped >= 80 ? '#117865' : clamped >= 50 ? '#b38600' : '#b42318'
+  return <Text size={200} className={styles.scoreText} style={{ color: tone }}>{clamped} / 100</Text>
 }

@@ -1,8 +1,13 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   Badge,
   Button,
   Field,
+  Menu,
+  MenuItem,
+  MenuList,
+  MenuPopover,
+  MenuTrigger,
   Select,
   Table,
   TableBody,
@@ -11,12 +16,12 @@ import {
   TableHeaderCell,
   TableRow,
 } from '@fluentui/react-components'
-import { Add24Regular } from '@fluentui/react-icons'
+import { Add24Regular, MoreHorizontalRegular } from '@fluentui/react-icons'
 import { useAuthRoles } from '../../auth/useAuthRoles'
 import { navigateTo } from '../../../lib/navigation'
 import { formatStatusLabel } from '../../../lib/formatStatus'
 import { Pagination } from '../../../components/ui/Pagination'
-import { EmptyState, FilterGroup, FilterItem, KpiCard, KpiGrid, PageStack, PageToolbar, TableActions, TableCard } from '../../../components/ui/FluentPage'
+import { EmptyState, FilterGroup, FilterItem, PageStack, PageToolbar, TableActions, TableCard } from '../../../components/ui/FluentPage'
 import { getBranchesLiteApi, getClassesApi, getCoursesLiteApi, getUsersLiteApi } from '../api'
 import type { BranchLite, ClassDto, CourseLite, UserLite } from '../types'
 
@@ -45,13 +50,6 @@ export function ClassListPage() {
   const [page, setPage] = useState(1)
   const [totalCount, setTotalCount] = useState(0)
 
-  const kpis = useMemo(() => ({
-    total: totalCount,
-    planned: items.filter((x) => x.status === 'planned').length,
-    active: items.filter((x) => x.status === 'active').length,
-    todaySessions: 0,
-  }), [items, totalCount])
-
   const load = async (nextPage = page) => {
     const [classes, cs, bs, us] = await Promise.all([
       getClassesApi({
@@ -76,13 +74,6 @@ export function ClassListPage() {
 
   return (
     <PageStack>
-      <KpiGrid>
-        <KpiCard label="Total classes" value={kpis.total} />
-        <KpiCard label="Planned classes" value={kpis.planned} />
-        <KpiCard label="Active classes" value={kpis.active} />
-        <KpiCard label="Today sessions" value={kpis.todaySessions} />
-      </KpiGrid>
-
       <PageToolbar>
         <FilterGroup>
           <FilterItem>
@@ -153,9 +144,18 @@ export function ClassListPage() {
                   <TableCell>{c.endDate ?? '-'}</TableCell>
                   <TableCell>
                     <TableActions>
-                      <Button size="small" appearance="subtle" onClick={() => navigateTo(`/classes/${c.id}`)}>View</Button>
-                      {canManage ? <Button size="small" appearance="subtle" onClick={() => navigateTo(`/classes/${c.id}/edit`)}>Edit</Button> : null}
-                      <Button size="small" appearance="subtle" onClick={() => navigateTo(`/classes/${c.id}/sessions`)}>Sessions</Button>
+                      <Menu positioning="below-end">
+                        <MenuTrigger disableButtonEnhancement>
+                          <Button size="small" appearance="subtle" icon={<MoreHorizontalRegular />} aria-label="More actions" />
+                        </MenuTrigger>
+                        <MenuPopover>
+                          <MenuList>
+                            <MenuItem onClick={() => navigateTo(`/classes/${c.id}`)}>View</MenuItem>
+                            {canManage ? <MenuItem onClick={() => navigateTo(`/classes/${c.id}/edit`)}>Edit</MenuItem> : null}
+                            <MenuItem onClick={() => navigateTo(`/classes/${c.id}/sessions`)}>Sessions</MenuItem>
+                          </MenuList>
+                        </MenuPopover>
+                      </Menu>
                     </TableActions>
                   </TableCell>
                 </TableRow>

@@ -10,9 +10,12 @@ import {
   DialogTrigger,
   Field,
   Input,
+  Menu,
+  MenuItem,
+  MenuList,
+  MenuPopover,
+  MenuTrigger,
   Select,
-  Tab,
-  TabList,
   Table,
   TableBody,
   TableCell,
@@ -21,9 +24,11 @@ import {
   TableRow,
   Text,
   Textarea,
+  makeStyles,
 } from '@fluentui/react-components'
+import { MoreHorizontalRegular } from '@fluentui/react-icons'
 import { Pagination } from '../../../components/ui/Pagination'
-import { EmptyState, FilterGroup, FilterItem, KpiCard, KpiGrid, PageStack, PageToolbar, TableActions, TableCard } from '../../../components/ui/FluentPage'
+import { EmptyState, FilterGroup, FilterItem, PageStack, PageToolbar, TableActions, TableCard } from '../../../components/ui/FluentPage'
 import { navigateTo } from '../../../lib/navigation'
 import { formatStatusLabel } from '../../../lib/formatStatus'
 import { getSalesUsersApi } from '../../leads/api'
@@ -45,21 +50,33 @@ const intentOptions = ['CourseInquiry', 'PriceInquiry', 'TrialRequest', 'Registr
 const sourcePlatforms = ['Facebook', 'Website', 'ChatWidget']
 const sourceTypes = ['Comment', 'Message', 'FormSubmit', 'ChatMessage']
 
-type TabFilter = 'all' | 'pending' | 'auto' | 'review' | 'converted' | 'ignored' | 'rejected'
+const useStyles = makeStyles({
+  actionHeadWrap: { width: '100%', display: 'flex', justifyContent: 'center' },
+  actionCellWrap: { width: '100%', display: 'flex', justifyContent: 'center' },
+  ellipsis: { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block' },
+  wrap2: {
+    display: '-webkit-box',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    WebkitLineClamp: '2',
+    WebkitBoxOrient: 'vertical',
+    lineHeight: '1.35',
+    maxHeight: '2.7em',
+  },
+})
 
 export function LeadCandidateListPage({ candidateId }: { candidateId?: string }) {
+  const styles = useStyles()
   const pageSize = 20
   const [items, setItems] = useState<LeadCandidateListItem[]>([])
   const [page, setPage] = useState(1)
   const [totalCount, setTotalCount] = useState(0)
   const [users, setUsers] = useState<UserLite[]>([])
-  const [selectedTab, setSelectedTab] = useState<TabFilter>('all')
   const [detail, setDetail] = useState<LeadCandidateDetail | null>(null)
   const [openDetail, setOpenDetail] = useState(false)
   const [openConvert, setOpenConvert] = useState(false)
   const [busyAction, setBusyAction] = useState<number | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [stats, setStats] = useState({ pending: 0, auto: 0, review: 0, ignored: 0 })
 
   const [keyword, setKeyword] = useState('')
   const [sourcePlatform, setSourcePlatform] = useState('')
@@ -75,14 +92,8 @@ export function LeadCandidateListPage({ candidateId }: { candidateId?: string })
   const convertNotePreview = `Created from AI Lead Candidate\n\nSource: ${detail?.sourcePlatform ?? '-'} ${detail?.sourceType ?? ''}\nDetected intent: ${formatStatusLabel(detail?.detectedIntent ?? '-')}\nCandidate score: ${detail?.candidateScore ?? 0}\nCourse interest: ${detail?.courseInterest ?? '-'}\n\nOriginal message:\n${detail?.rawInteraction?.rawText ?? detail?.normalizedText ?? '-'}`
 
   const query = useMemo(() => {
-    const mappedStatus = status || (selectedTab === 'pending' ? 'Pending'
-      : selectedTab === 'converted' ? 'ConvertedToLead'
-        : selectedTab === 'ignored' ? 'Ignored'
-          : selectedTab === 'rejected' ? 'Rejected'
-            : undefined)
-    const mappedDecision = decision || (selectedTab === 'auto' ? 'AutoCreateLead'
-      : selectedTab === 'review' ? 'NeedsReview'
-        : undefined)
+    const mappedStatus = status || undefined
+    const mappedDecision = decision || undefined
     return {
       page,
       pageSize,
@@ -97,7 +108,7 @@ export function LeadCandidateListPage({ candidateId }: { candidateId?: string })
       fromDate: fromDate || undefined,
       toDate: toDate || undefined,
     }
-  }, [page, keyword, sourcePlatform, sourceType, intent, decision, status, contact, fromDate, toDate, selectedTab])
+  }, [page, keyword, sourcePlatform, sourceType, intent, decision, status, contact, fromDate, toDate])
 
   const load = async () => {
     try {
@@ -108,25 +119,6 @@ export function LeadCandidateListPage({ candidateId }: { candidateId?: string })
       setPage(data.pageNumber)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load lead candidates')
-    }
-  }
-
-  const loadStats = async () => {
-    try {
-      const [pending, autoCreate, needsReview, ignored] = await Promise.all([
-        getLeadCandidatesApi({ page: 1, pageSize: 1, status: 'Pending' }),
-        getLeadCandidatesApi({ page: 1, pageSize: 1, decision: 'AutoCreateLead' }),
-        getLeadCandidatesApi({ page: 1, pageSize: 1, decision: 'NeedsReview' }),
-        getLeadCandidatesApi({ page: 1, pageSize: 1, status: 'Ignored' }),
-      ])
-      setStats({
-        pending: pending.totalCount,
-        auto: autoCreate.totalCount,
-        review: needsReview.totalCount,
-        ignored: ignored.totalCount,
-      })
-    } catch {
-      setStats({ pending: 0, auto: 0, review: 0, ignored: 0 })
     }
   }
 
@@ -145,7 +137,7 @@ export function LeadCandidateListPage({ candidateId }: { candidateId?: string })
       if (action === 'ignore') await ignoreLeadCandidateApi(id)
       if (action === 'convert') await convertLeadCandidateApi(id)
       if (detail?.id === id) setDetail(await getLeadCandidateDetailApi(id))
-      await Promise.all([load(), loadStats()])
+      await load()
     } finally {
       setBusyAction(null)
     }
@@ -153,7 +145,6 @@ export function LeadCandidateListPage({ candidateId }: { candidateId?: string })
 
   useEffect(() => { void getSalesUsersApi().then(setUsers).catch(() => setUsers([])) }, [])
   useEffect(() => { void load() }, [query])
-  useEffect(() => { void loadStats() }, [])
   useEffect(() => {
     if (candidateId) {
       void openReview(Number(candidateId))
@@ -165,23 +156,6 @@ export function LeadCandidateListPage({ candidateId }: { candidateId?: string })
 
   return (
     <PageStack>
-      <TabList selectedValue={selectedTab} onTabSelect={(_, data) => { setSelectedTab(data.value as TabFilter); setPage(1) }}>
-        <Tab value="all">All</Tab>
-        <Tab value="pending">Pending</Tab>
-        <Tab value="auto">Auto Create</Tab>
-        <Tab value="review">Needs Review</Tab>
-        <Tab value="converted">Converted</Tab>
-        <Tab value="ignored">Ignored</Tab>
-        <Tab value="rejected">Rejected</Tab>
-      </TabList>
-
-      <KpiGrid>
-        <KpiCard label="Pending Review" value={stats.pending} />
-        <KpiCard label="Auto Create Lead" value={stats.auto} />
-        <KpiCard label="Needs Review" value={stats.review} />
-        <KpiCard label="Ignored" value={stats.ignored} />
-      </KpiGrid>
-
       <PageToolbar>
         <FilterGroup>
           <FilterItem><Field label="Search"><Input value={keyword} placeholder="Search by name, phone, email, message..." onChange={(_, d) => setKeyword(d.value)} /></Field></FilterItem>
@@ -201,40 +175,75 @@ export function LeadCandidateListPage({ candidateId }: { candidateId?: string })
         {error ? <Text>{error}</Text> : null}
         {items.length === 0 ? <EmptyState title="No candidates found" description="Try changing filters or tab." /> : (
           <Table aria-label="Lead candidates table">
+            <colgroup>
+              <col style={{ width: '6%' }} />
+              <col style={{ width: '10%' }} />
+              <col style={{ width: '14%' }} />
+              <col style={{ width: '30%' }} />
+              <col style={{ width: '12%' }} />
+              <col style={{ width: '8%' }} />
+              <col style={{ width: '11%' }} />
+              <col style={{ width: '9%' }} />
+              <col style={{ width: '8%' }} />
+            </colgroup>
             <TableHeader>
               <TableRow>
+                <TableHeaderCell>ID</TableHeaderCell>
                 <TableHeaderCell>Source</TableHeaderCell>
                 <TableHeaderCell>Customer</TableHeaderCell>
                 <TableHeaderCell>Interaction</TableHeaderCell>
                 <TableHeaderCell>Intent</TableHeaderCell>
                 <TableHeaderCell>Score</TableHeaderCell>
                 <TableHeaderCell>Decision</TableHeaderCell>
-                <TableHeaderCell>Contact</TableHeaderCell>
                 <TableHeaderCell>Status</TableHeaderCell>
-                <TableHeaderCell>Created At</TableHeaderCell>
-                <TableHeaderCell>Actions</TableHeaderCell>
+                <TableHeaderCell>
+                  <div className={styles.actionHeadWrap}>Actions</div>
+                </TableHeaderCell>
               </TableRow>
             </TableHeader>
             <TableBody>
               {items.map((x) => (
                 <TableRow key={x.id}>
+                  <TableCell>{x.id}</TableCell>
                   <TableCell><SourceBadge value={x.sourcePlatform} /></TableCell>
-                  <TableCell>{x.customerName ?? '-'}</TableCell>
-                  <TableCell>{(x.normalizedText ?? '').slice(0, 80) || '-'}</TableCell>
+                  <TableCell><span className={styles.ellipsis}>{x.customerName ?? '-'}</span></TableCell>
+                  <TableCell><span className={styles.wrap2}>{(x.normalizedText ?? '') || '-'}</span></TableCell>
                   <TableCell><IntentBadge value={x.detectedIntent} /></TableCell>
                   <TableCell><ScoreView score={x.candidateScore} /></TableCell>
                   <TableCell><DecisionBadge value={x.decision} /></TableCell>
-                  <TableCell>{x.phone || x.email ? `${x.phone ?? ''}${x.phone && x.email ? ' · ' : ''}${x.email ?? ''}` : '-'}</TableCell>
                   <TableCell><CandidateStatusBadge value={x.status} /></TableCell>
-                  <TableCell>{new Date(x.createdAt).toLocaleString()}</TableCell>
                   <TableCell>
+                    <div className={styles.actionCellWrap}>
                     <TableActions>
-                      <Button size="small" appearance="subtle" onClick={() => void openReview(x.id)}>Review</Button>
-                      {(x.status === 'Pending' || x.status === 'Approved') ? <Button size="small" appearance="subtle" disabled={busyAction === x.id} onClick={() => void runAction(x.id, 'approve')}>Approve</Button> : null}
-                      {(x.status === 'Pending' || x.status === 'Approved') ? <Button size="small" appearance="subtle" disabled={busyAction === x.id} onClick={() => void runAction(x.id, 'reject')}>Reject</Button> : null}
-                      {(x.status === 'Pending' || x.status === 'Approved') ? <Button size="small" appearance="subtle" disabled={busyAction === x.id} onClick={() => void runAction(x.id, 'ignore')}>Ignore</Button> : null}
-                      {(x.status === 'Pending' || x.status === 'Approved') ? <Button size="small" appearance="subtle" disabled={busyAction === x.id} onClick={() => { setDetail(x as LeadCandidateDetail); setOpenConvert(true) }}>Convert</Button> : null}
+                      <Menu positioning="below-end">
+                        <MenuTrigger disableButtonEnhancement>
+                          <Button
+                            size="small"
+                            appearance="subtle"
+                            icon={<MoreHorizontalRegular />}
+                            aria-label="More actions"
+                          />
+                        </MenuTrigger>
+                        <MenuPopover>
+                          <MenuList>
+                            <MenuItem onClick={() => void openReview(x.id)}>Review</MenuItem>
+                            {(x.status === 'Pending' || x.status === 'Approved') ? (
+                              <MenuItem disabled={busyAction === x.id} onClick={() => void runAction(x.id, 'approve')}>Approve</MenuItem>
+                            ) : null}
+                            {(x.status === 'Pending' || x.status === 'Approved') ? (
+                              <MenuItem disabled={busyAction === x.id} onClick={() => void runAction(x.id, 'reject')}>Reject</MenuItem>
+                            ) : null}
+                            {(x.status === 'Pending' || x.status === 'Approved') ? (
+                              <MenuItem disabled={busyAction === x.id} onClick={() => void runAction(x.id, 'ignore')}>Ignore</MenuItem>
+                            ) : null}
+                            {(x.status === 'Pending' || x.status === 'Approved') ? (
+                              <MenuItem disabled={busyAction === x.id} onClick={() => { setDetail(x as LeadCandidateDetail); setOpenConvert(true) }}>Convert to Lead</MenuItem>
+                            ) : null}
+                          </MenuList>
+                        </MenuPopover>
+                      </Menu>
                     </TableActions>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
@@ -316,3 +325,5 @@ export function LeadCandidateListPage({ candidateId }: { candidateId?: string })
     </PageStack>
   )
 }
+
+

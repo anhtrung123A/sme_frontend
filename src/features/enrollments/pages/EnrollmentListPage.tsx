@@ -1,7 +1,12 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   Button,
   Field,
+  Menu,
+  MenuItem,
+  MenuList,
+  MenuPopover,
+  MenuTrigger,
   MessageBar,
   MessageBarBody,
   Select,
@@ -12,10 +17,10 @@ import {
   TableHeaderCell,
   TableRow,
 } from '@fluentui/react-components'
-import { Add24Regular } from '@fluentui/react-icons'
+import { Add24Regular, MoreHorizontalRegular } from '@fluentui/react-icons'
 import { navigateTo } from '../../../lib/navigation'
 import { Pagination } from '../../../components/ui/Pagination'
-import { EmptyState, FilterGroup, FilterItem, KpiCard, KpiGrid, PageStack, PageToolbar, TableActions, TableCard } from '../../../components/ui/FluentPage'
+import { EmptyState, FilterGroup, FilterItem, PageStack, PageToolbar, TableActions, TableCard } from '../../../components/ui/FluentPage'
 import { useAuthRoles } from '../../auth/useAuthRoles'
 import { deleteEnrollmentApi, getBranchesLiteApi, getClassesLiteApi, getCoursesLiteApi, getEnrollmentsApi, getUsersLiteApi } from '../api'
 import { EnrollmentStatusBadge } from '../components/EnrollmentStatusBadge'
@@ -38,13 +43,6 @@ export function EnrollmentListPage() {
   const [error, setError] = useState<string | null>(null)
   const [page, setPage] = useState(1)
   const [totalCount, setTotalCount] = useState(0)
-
-  const kpi = useMemo(() => ({
-    pending: items.filter((x) => x.status === 'pending').length,
-    waiting: items.filter((x) => x.status === 'waiting_payment').length,
-    active: items.filter((x) => x.status === 'active').length,
-    completed: items.filter((x) => x.status === 'completed').length,
-  }), [items])
 
   const load = async (nextPage = page) => {
     try {
@@ -71,13 +69,6 @@ export function EnrollmentListPage() {
 
   return (
     <PageStack>
-      <KpiGrid>
-        <KpiCard label="Pending" value={kpi.pending} />
-        <KpiCard label="Waiting Payment" value={kpi.waiting} />
-        <KpiCard label="Active" value={kpi.active} />
-        <KpiCard label="Completed" value={kpi.completed} />
-      </KpiGrid>
-
       <PageToolbar>
         <FilterGroup>
           <FilterItem>
@@ -136,6 +127,7 @@ export function EnrollmentListPage() {
           <Table aria-label="Enrollments table">
             <TableHeader>
               <TableRow>
+                <TableHeaderCell style={{ width: '7ch', minWidth: '7ch', whiteSpace: 'nowrap' }}>ID</TableHeaderCell>
                 <TableHeaderCell>Student</TableHeaderCell>
                 <TableHeaderCell>Course</TableHeaderCell>
                 <TableHeaderCell>Class</TableHeaderCell>
@@ -149,6 +141,7 @@ export function EnrollmentListPage() {
             <TableBody>
               {items.map((x) => (
                 <TableRow key={x.id}>
+                  <TableCell style={{ width: '7ch', minWidth: '7ch', whiteSpace: 'nowrap' }}>{x.id}</TableCell>
                   <TableCell>{x.studentName}</TableCell>
                   <TableCell>{x.courseName}</TableCell>
                   <TableCell>{x.className ?? '-'}</TableCell>
@@ -158,9 +151,18 @@ export function EnrollmentListPage() {
                   <TableCell>{x.enrolledAt ? new Date(x.enrolledAt).toLocaleString() : '-'}</TableCell>
                   <TableCell>
                     <TableActions>
-                      <Button size="small" appearance="subtle" onClick={() => navigateTo(`/enrollments/${x.id}`)}>View</Button>
-                      <Button size="small" appearance="subtle" onClick={() => navigateTo(`/enrollments/${x.id}/edit`)}>Edit</Button>
-                      {roles.includes('Admin') ? <Button size="small" appearance="subtle" onClick={async () => { if (window.confirm('Delete enrollment?')) { await deleteEnrollmentApi(x.id); await load() } }}>Delete</Button> : null}
+                      <Menu positioning="below-end">
+                        <MenuTrigger disableButtonEnhancement>
+                          <Button size="small" appearance="subtle" icon={<MoreHorizontalRegular />} aria-label="More actions" />
+                        </MenuTrigger>
+                        <MenuPopover>
+                          <MenuList>
+                            <MenuItem onClick={() => navigateTo(`/enrollments/${x.id}`)}>View</MenuItem>
+                            <MenuItem onClick={() => navigateTo(`/enrollments/${x.id}/edit`)}>Edit</MenuItem>
+                            {roles.includes('Admin') ? <MenuItem onClick={async () => { if (window.confirm('Delete enrollment?')) { await deleteEnrollmentApi(x.id); await load() } }}>Delete</MenuItem> : null}
+                          </MenuList>
+                        </MenuPopover>
+                      </Menu>
                     </TableActions>
                   </TableCell>
                 </TableRow>

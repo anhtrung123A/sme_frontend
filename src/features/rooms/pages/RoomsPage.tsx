@@ -198,6 +198,7 @@ export function RoomsPage() {
           <Table aria-label="Rooms table">
             <TableHeader>
               <TableRow>
+                <TableHeaderCell style={{ width: '7ch', minWidth: '7ch', whiteSpace: 'nowrap' }}>ID</TableHeaderCell>
                 <TableHeaderCell>Room Name</TableHeaderCell>
                 <TableHeaderCell>Branch</TableHeaderCell>
                 <TableHeaderCell>Capacity</TableHeaderCell>
@@ -208,6 +209,7 @@ export function RoomsPage() {
             <TableBody>
               {pagedRooms.map((room) => (
                 <TableRow key={room.id}>
+                  <TableCell style={{ width: '7ch', minWidth: '7ch', whiteSpace: 'nowrap' }}>{room.id}</TableCell>
                   <TableCell>{room.name}</TableCell>
                   <TableCell>{room.branchName}</TableCell>
                   <TableCell>{room.capacity ?? '-'}</TableCell>

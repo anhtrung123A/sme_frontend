@@ -33,7 +33,12 @@ export function Pagination({ page, pageSize, totalCount, onPageChange }: Paginat
   const handlePageChange = (nextPage: number) => {
     onPageChange(nextPage)
     if (typeof window !== 'undefined') {
-      window.scrollTo({ top: 0, behavior: 'smooth' })
+      const scrollRoot = document.querySelector<HTMLElement>('[data-app-scroll-root="true"]')
+      if (scrollRoot) {
+        scrollRoot.scrollTo({ top: 0, behavior: 'smooth' })
+      } else {
+        window.scrollTo({ top: 0, behavior: 'smooth' })
+      }
     }
   }
 

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   Badge,
   Button,
@@ -11,8 +11,14 @@ import {
   DialogTitle,
   DialogTrigger,
   Field,
+  Input,
   MessageBar,
   MessageBarBody,
+  Menu,
+  MenuItem,
+  MenuList,
+  MenuPopover,
+  MenuTrigger,
   SearchBox,
   Select,
   Spinner,
@@ -27,7 +33,7 @@ import {
   makeStyles,
   tokens,
 } from '@fluentui/react-components'
-import { Add24Regular } from '@fluentui/react-icons'
+import { Add24Regular, MoreHorizontalRegular } from '@fluentui/react-icons'
 import { navigateTo } from '../../../lib/navigation'
 import { Pagination } from '../../../components/ui/Pagination'
 import { useAuthRoles } from '../../auth/useAuthRoles'
@@ -39,6 +45,7 @@ import {
   getLeadsApi,
   getLeadSourcesApi,
   getSalesUsersApi,
+  updateLeadApi,
 } from '../api'
 import type { BranchDto, LeadDto, LeadSourceDto, UserLite } from '../types'
 
@@ -125,6 +132,8 @@ const useStyles = makeStyles({
     gap: tokens.spacingHorizontalXS,
     flexWrap: 'wrap',
   },
+  actionHeadWrap: { width: '100%', display: 'flex', justifyContent: 'center' },
+  actionCellWrap: { width: '100%', display: 'flex', justifyContent: 'center' },
   pagination: {
     padding: `${tokens.spacingVerticalM} ${tokens.spacingHorizontalL}`,
     borderTop: `1px solid ${tokens.colorNeutralStroke2}`,
@@ -149,21 +158,15 @@ export function LeadListPage() {
   const [page, setPage] = useState(1)
   const [totalCount, setTotalCount] = useState(0)
   const [leadToDelete, setLeadToDelete] = useState<LeadDto | null>(null)
+  const [viewLead, setViewLead] = useState<LeadDto | null>(null)
+  const [editLead, setEditLead] = useState<LeadDto | null>(null)
+  const [editForm, setEditForm] = useState({ fullName: '', phone: '', email: '', status: 'new', address: '' })
 
   const [keyword, setKeyword] = useState('')
   const [status, setStatus] = useState('')
   const [sourceId, setSourceId] = useState('')
   const [assignedId, setAssignedId] = useState('')
   const [branchId, setBranchId] = useState('')
-
-  const kpis = useMemo(() => {
-    const map = { new: 0, contacted: 0, interested: 0, trial_scheduled: 0, lost: 0 }
-    for (const l of leads) {
-      const key = l.status as keyof typeof map
-      if (key in map) map[key] += 1
-    }
-    return map
-  }, [leads])
 
   const load = async (nextPage = page) => {
     setLoading(true)
@@ -226,21 +229,38 @@ export function LeadListPage() {
     await load()
   }
 
+  const openEditLead = (lead: LeadDto) => {
+    setEditLead(lead)
+    setEditForm({
+      fullName: lead.fullName,
+      phone: lead.phone,
+      email: lead.email ?? '',
+      status: lead.status,
+      address: lead.address ?? '',
+    })
+  }
+
+  const saveEditLead = async () => {
+    if (!editLead) return
+    await updateLeadApi(editLead.id, {
+      branchId: editLead.branchId,
+      assignedToUserId: editLead.assignedToUserId,
+      fullName: editForm.fullName,
+      phone: editForm.phone,
+      email: editForm.email || null,
+      dateOfBirth: editLead.dateOfBirth,
+      address: editForm.address || null,
+      sourceId: editLead.sourceId,
+      interestedCourseId: editLead.interestedCourseId,
+      status: editForm.status,
+      demandNote: editLead.demandNote,
+    })
+    setEditLead(null)
+    await load()
+  }
+
   return (
     <div className={styles.root}>
-      <section className={styles.kpiGrid} aria-label="Lead summary">
-        {statuses.map((item) => (
-          <Card key={item} className={styles.kpiCard}>
-            <Text className={styles.muted} size={200} weight="semibold">
-              {statusLabels[item]}
-            </Text>
-            <Text size={700} weight="semibold">
-              {kpis[item as keyof typeof kpis]}
-            </Text>
-          </Card>
-        ))}
-      </section>
-
       <div className={styles.toolbar}>
         <div className={styles.filters}>
           <Field label="Search">
@@ -313,18 +333,22 @@ export function LeadListPage() {
           <Table aria-label="Leads table">
             <TableHeader>
               <TableRow>
+                <TableHeaderCell>ID</TableHeaderCell>
                 <TableHeaderCell>Lead name</TableHeaderCell>
                 <TableHeaderCell>Phone</TableHeaderCell>
                 <TableHeaderCell>Source</TableHeaderCell>
                 <TableHeaderCell>Status</TableHeaderCell>
                 <TableHeaderCell>Assigned to</TableHeaderCell>
                 <TableHeaderCell>Next follow-up</TableHeaderCell>
-                <TableHeaderCell>Actions</TableHeaderCell>
+                <TableHeaderCell>
+                  <div className={styles.actionHeadWrap}>Actions</div>
+                </TableHeaderCell>
               </TableRow>
             </TableHeader>
             <TableBody>
               {leads.map((lead) => (
                 <TableRow key={lead.id}>
+                  <TableCell>{lead.id}</TableCell>
                   <TableCell>
                     <TableCellLayout>{lead.fullName}</TableCellLayout>
                   </TableCell>
@@ -338,16 +362,21 @@ export function LeadListPage() {
                   <TableCell>{lead.assignedToUserName ?? '-'}</TableCell>
                   <TableCell>-</TableCell>
                   <TableCell>
-                    <div className={styles.actions}>
-                      <Button size="small" appearance="subtle" onClick={() => navigateTo(`/leads/${lead.id}`)}>View</Button>
-                      <Button size="small" appearance="subtle" onClick={() => navigateTo(`/leads/${lead.id}/edit`)}>Edit</Button>
-                      {canAssign ? <Button size="small" appearance="subtle" onClick={() => void handleAssign(lead)}>Assign</Button> : null}
-                      <Button size="small" appearance="subtle" onClick={() => void handleChangeStatus(lead)}>Status</Button>
-                      {canDelete ? (
-                        <Button size="small" appearance="subtle" onClick={() => setLeadToDelete(lead)}>
-                          Delete
-                        </Button>
-                      ) : null}
+                    <div className={styles.actionCellWrap}>
+                      <Menu positioning="below-end">
+                        <MenuTrigger disableButtonEnhancement>
+                          <Button size="small" appearance="subtle" icon={<MoreHorizontalRegular />} aria-label="More actions" />
+                        </MenuTrigger>
+                        <MenuPopover>
+                          <MenuList>
+                            <MenuItem onClick={() => setViewLead(lead)}>View</MenuItem>
+                            <MenuItem onClick={() => openEditLead(lead)}>Edit</MenuItem>
+                            {canAssign ? <MenuItem onClick={() => void handleAssign(lead)}>Assign</MenuItem> : null}
+                            <MenuItem onClick={() => void handleChangeStatus(lead)}>Change status</MenuItem>
+                            {canDelete ? <MenuItem onClick={() => setLeadToDelete(lead)}>Delete</MenuItem> : null}
+                          </MenuList>
+                        </MenuPopover>
+                      </Menu>
                     </div>
                   </TableCell>
                 </TableRow>
@@ -375,6 +404,52 @@ export function LeadListPage() {
               <Button appearance="primary" onClick={() => void handleDelete()}>
                 Delete
               </Button>
+            </DialogActions>
+          </DialogBody>
+        </DialogSurface>
+      </Dialog>
+
+      <Dialog open={Boolean(viewLead)} onOpenChange={(_, data) => !data.open && setViewLead(null)}>
+        <DialogSurface>
+          <DialogBody>
+            <DialogTitle>Lead Detail</DialogTitle>
+            <DialogContent>
+              {viewLead ? (
+                <div style={{ display: 'grid', gap: 8 }}>
+                  <Text>ID: {viewLead.id}</Text>
+                  <Text>Full name: {viewLead.fullName}</Text>
+                  <Text>Phone: {viewLead.phone}</Text>
+                  <Text>Email: {viewLead.email ?? '-'}</Text>
+                  <Text>Status: {statusLabels[viewLead.status] ?? viewLead.status}</Text>
+                  <Text>Source: {viewLead.sourceName ?? '-'}</Text>
+                  <Text>Assigned to: {viewLead.assignedToUserName ?? '-'}</Text>
+                  <Text>Address: {viewLead.address ?? '-'}</Text>
+                </div>
+              ) : null}
+            </DialogContent>
+            <DialogActions>
+              <DialogTrigger disableButtonEnhancement><Button appearance="secondary">Close</Button></DialogTrigger>
+            </DialogActions>
+          </DialogBody>
+        </DialogSurface>
+      </Dialog>
+
+      <Dialog open={Boolean(editLead)} onOpenChange={(_, data) => !data.open && setEditLead(null)}>
+        <DialogSurface>
+          <DialogBody>
+            <DialogTitle>Edit Lead</DialogTitle>
+            <DialogContent>
+              <div style={{ display: 'grid', gap: 10 }}>
+                <Field label="Full name"><Input value={editForm.fullName} onChange={(_, d) => setEditForm((p) => ({ ...p, fullName: d.value }))} /></Field>
+                <Field label="Phone"><Input value={editForm.phone} onChange={(_, d) => setEditForm((p) => ({ ...p, phone: d.value }))} /></Field>
+                <Field label="Email"><Input value={editForm.email} onChange={(_, d) => setEditForm((p) => ({ ...p, email: d.value }))} /></Field>
+                <Field label="Status"><Select value={editForm.status} onChange={(e) => setEditForm((p) => ({ ...p, status: e.currentTarget.value }))}>{statuses.map((s) => <option key={s} value={s}>{statusLabels[s]}</option>)}</Select></Field>
+                <Field label="Address"><Input value={editForm.address} onChange={(_, d) => setEditForm((p) => ({ ...p, address: d.value }))} /></Field>
+              </div>
+            </DialogContent>
+            <DialogActions>
+              <DialogTrigger disableButtonEnhancement><Button appearance="secondary">Cancel</Button></DialogTrigger>
+              <Button appearance="primary" onClick={() => void saveEditLead()}>Save</Button>
             </DialogActions>
           </DialogBody>
         </DialogSurface>

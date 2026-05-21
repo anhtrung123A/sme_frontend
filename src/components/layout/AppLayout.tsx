@@ -11,16 +11,18 @@ type AppLayoutProps = {
 
 const useStyles = makeStyles({
   root: {
-    minHeight: '100vh',
+    height: '100vh',
     display: 'flex',
     flexDirection: 'column',
     backgroundColor: tokens.colorNeutralBackground2,
     color: tokens.colorNeutralForeground1,
+    overflow: 'hidden',
   },
   body: {
     flex: 1,
     minHeight: 0,
     display: 'flex',
+    overflow: 'hidden',
   },
   content: {
     flex: 1,
@@ -58,7 +60,7 @@ export function AppLayout({ title, children }: AppLayoutProps) {
       <div className={styles.body}>
         <Sidebar isCollapsed={isSidebarCollapsed} />
 
-        <main className={styles.content}>
+        <main className={styles.content} data-app-scroll-root="true">
           <header className={styles.header}>
             <div className={styles.titleBlock}>
               <Text className={styles.eyebrow} size={200} weight="semibold">

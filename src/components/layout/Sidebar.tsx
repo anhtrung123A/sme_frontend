@@ -4,7 +4,6 @@ import {
   BookOpen24Regular,
   Building24Regular,
   CalendarCheckmark24Regular,
-  ChartMultiple24Regular,
   Home24Regular,
   Payment24Regular,
   People24Regular,
@@ -33,11 +32,6 @@ const navItems: NavItem[] = [
   { label: 'Invoices', path: '/invoices', icon: <Payment24Regular />, roles: ['Admin', 'Manager', 'Sales'] },
   { label: 'Payments', path: '/payments', icon: <Payment24Regular />, roles: ['Admin', 'Manager'] },
   { label: 'My Sessions', path: '/teacher/my-sessions', icon: <CalendarCheckmark24Regular />, roles: ['Admin', 'Manager', 'Teacher'] },
-  { label: 'Lead Analytics', path: '/analytics/leads', icon: <ChartMultiple24Regular />, roles: ['Admin', 'Manager', 'Sales'] },
-  { label: 'Revenue Analytics', path: '/analytics/revenue', icon: <ChartMultiple24Regular />, roles: ['Admin', 'Manager'] },
-  { label: 'Enrollment Analytics', path: '/analytics/enrollments', icon: <ChartMultiple24Regular />, roles: ['Admin', 'Manager', 'Sales'] },
-  { label: 'Attendance Analytics', path: '/analytics/attendance', icon: <ChartMultiple24Regular />, roles: ['Admin', 'Manager', 'Teacher'] },
-  { label: 'Task Analytics', path: '/analytics/tasks', icon: <ChartMultiple24Regular />, roles: ['Admin', 'Manager', 'Sales'] },
   { label: 'Profile', path: '/profile', icon: <People24Regular /> },
 ]
 
@@ -137,11 +131,6 @@ export function Sidebar({ isCollapsed }: SidebarProps) {
     if (path === '/invoices') return currentPath === '/invoices' || /\/invoices\/[^/]+$/.test(currentPath)
     if (path === '/payments') return currentPath === '/payments' || /\/students\/[^/]+\/payments$/.test(currentPath)
     if (path === '/teacher/my-sessions') return currentPath === '/teacher/my-sessions' || /\/attendance\/sessions\/[^/]+$/.test(currentPath)
-    if (path === '/analytics/leads') return currentPath === '/analytics/leads'
-    if (path === '/analytics/revenue') return currentPath === '/analytics/revenue'
-    if (path === '/analytics/enrollments') return currentPath === '/analytics/enrollments'
-    if (path === '/analytics/attendance') return currentPath === '/analytics/attendance'
-    if (path === '/analytics/tasks') return currentPath === '/analytics/tasks'
     return currentPath === path
   }
 

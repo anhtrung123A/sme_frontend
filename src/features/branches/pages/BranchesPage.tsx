@@ -13,6 +13,11 @@ import {
   Input,
   MessageBar,
   MessageBarBody,
+  Menu,
+  MenuItem,
+  MenuList,
+  MenuPopover,
+  MenuTrigger,
   Spinner,
   Switch,
   Table,
@@ -22,7 +27,7 @@ import {
   TableHeaderCell,
   TableRow,
 } from '@fluentui/react-components'
-import { Add24Regular } from '@fluentui/react-icons'
+import { Add24Regular, MoreHorizontalRegular } from '@fluentui/react-icons'
 import { Pagination } from '../../../components/ui/Pagination'
 import { EmptyState, PageStack, PageToolbar, TableActions, TableCard } from '../../../components/ui/FluentPage'
 import {
@@ -194,17 +199,19 @@ export function BranchesPage() {
           <Table aria-label="Branches table">
             <TableHeader>
               <TableRow>
+                <TableHeaderCell style={{ width: '7ch', minWidth: '7ch', whiteSpace: 'nowrap' }}>ID</TableHeaderCell>
                 <TableHeaderCell>Name</TableHeaderCell>
                 <TableHeaderCell>Address</TableHeaderCell>
                 <TableHeaderCell>Phone</TableHeaderCell>
                 <TableHeaderCell>Email</TableHeaderCell>
                 <TableHeaderCell>Active</TableHeaderCell>
-                <TableHeaderCell>Actions</TableHeaderCell>
+                <TableHeaderCell style={{ textAlign: 'center' }}>Actions</TableHeaderCell>
               </TableRow>
             </TableHeader>
             <TableBody>
               {pagedBranches.map((branch) => (
                 <TableRow key={branch.id}>
+                  <TableCell style={{ width: '7ch', minWidth: '7ch', whiteSpace: 'nowrap' }}>{branch.id}</TableCell>
                   <TableCell>{branch.name}</TableCell>
                   <TableCell>{branch.address || '-'}</TableCell>
                   <TableCell>{branch.phone || '-'}</TableCell>
@@ -216,14 +223,19 @@ export function BranchesPage() {
                       </Badge>
                     </Button>
                   </TableCell>
-                  <TableCell>
+                  <TableCell style={{ textAlign: 'center' }}>
                     <TableActions>
-                      <Button size="small" appearance="subtle" type="button" onClick={() => void openEditModal(branch.id)}>
-                        Edit
-                      </Button>
-                      <Button size="small" appearance="subtle" type="button" onClick={() => setBranchToDelete(branch)}>
-                        Delete
-                      </Button>
+                      <Menu positioning="below-end">
+                        <MenuTrigger disableButtonEnhancement>
+                          <Button size="small" appearance="subtle" icon={<MoreHorizontalRegular />} aria-label="More actions" />
+                        </MenuTrigger>
+                        <MenuPopover>
+                          <MenuList>
+                            <MenuItem onClick={() => void openEditModal(branch.id)}>Edit</MenuItem>
+                            <MenuItem onClick={() => setBranchToDelete(branch)}>Delete</MenuItem>
+                          </MenuList>
+                        </MenuPopover>
+                      </Menu>
                     </TableActions>
                   </TableCell>
                 </TableRow>
