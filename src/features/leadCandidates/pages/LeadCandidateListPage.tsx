@@ -176,14 +176,14 @@ export function LeadCandidateListPage({ candidateId }: { candidateId?: string })
         {items.length === 0 ? <EmptyState title="No candidates found" description="Try changing filters or tab." /> : (
           <Table aria-label="Lead candidates table">
             <colgroup>
-              <col style={{ width: '6%' }} />
-              <col style={{ width: '10%' }} />
-              <col style={{ width: '14%' }} />
-              <col style={{ width: '30%' }} />
-              <col style={{ width: '12%' }} />
-              <col style={{ width: '8%' }} />
-              <col style={{ width: '11%' }} />
+              <col style={{ width: '5%' }} />
               <col style={{ width: '9%' }} />
+              <col style={{ width: '12%' }} />
+              <col style={{ width: '27%' }} />
+              <col style={{ width: '11%' }} />
+              <col style={{ width: '7%' }} />
+              <col style={{ width: '13%' }} />
+              <col style={{ width: '13%' }} />
               <col style={{ width: '8%' }} />
             </colgroup>
             <TableHeader>
@@ -269,11 +269,34 @@ export function LeadCandidateListPage({ candidateId }: { candidateId?: string })
                   <Text weight="semibold">Original interaction</Text>
                   <Text>{detail.rawInteraction?.rawText ?? detail.normalizedText ?? '-'}</Text>
                   <Text weight="semibold">AI extraction</Text>
-                  <Text>Intent: {formatStatusLabel(detail.detectedIntent)} · Confidence: {detail.intentConfidence}</Text>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <Text>Intent: {formatStatusLabel(detail.detectedIntent)}</Text>
+                    <Text>· Confidence:</Text>
+                    <div style={{ flex: 1, maxWidth: 120, height: 6, background: '#e5e7eb', borderRadius: 4, overflow: 'hidden' }}>
+                      <div style={{ width: `${((detail.intentConfidence ?? 0) * 100).toFixed(0)}%`, height: '100%', background: '#3b82f6', borderRadius: 4 }} />
+                    </div>
+                    <Text>{detail.intentConfidence != null ? `${((detail.intentConfidence) * 100).toFixed(0)}%` : '-'}</Text>
+                  </div>
                   <Text>Course interest: {detail.courseInterest ?? '-'}</Text>
                   <Text>Contact: {detail.phone ?? '-'} · {detail.email ?? '-'}</Text>
                   <Text weight="semibold">Decision reason</Text>
-                  <Textarea readOnly value={detail.decisionReasonJson ?? ''} />
+                  {(() => {
+                    try {
+                      const p = JSON.parse(detail.decisionReasonJson ?? '{}');
+                      return (
+                        <PageStack gap="xs">
+                          {p.reason && <Text>Reason: {p.reason}</Text>}
+                          {p.seedIntent && <Text>Seed intent: {p.seedIntent}</Text>}
+                          {p.source && typeof p.source === 'string' && <Text>Source: {p.source}</Text>}
+                          {p.datasetVersion && <Text>Dataset version: {p.datasetVersion}</Text>}
+                          {p.hasPhone !== undefined && <Text>Has phone: {p.hasPhone ? 'Yes' : 'No'}</Text>}
+                          {p.hasEmail !== undefined && <Text>Has email: {p.hasEmail ? 'Yes' : 'No'}</Text>}
+                        </PageStack>
+                      );
+                    } catch {
+                      return <Text>{detail.decisionReasonJson ?? '-'}</Text>;
+                    }
+                  })()}
                   <Text weight="semibold">Advanced details</Text>
                   <Text>Raw Interaction ID: {detail.rawInteractionId} · External ID: {detail.rawInteraction?.externalId ?? '-'}</Text>
                   <Text>Model: {detail.latestPrediction?.modelVersion ?? '-'} · Predicted at: {detail.latestPrediction?.predictedAt ? new Date(detail.latestPrediction.predictedAt).toLocaleString() : '-'}</Text>
